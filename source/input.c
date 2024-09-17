@@ -3377,9 +3377,10 @@ int input_read_parameters_injection(struct file_content * pfc,
 
   /** - Define local variables */
   struct injection* pin = &(pth->in);
-  int flag1;
-  char string1[_ARGUMENT_LENGTH_MAX_];
+  int flag1,flag2,flag3;
+  char string1[_ARGUMENT_LENGTH_MAX_],string2[_ARGUMENT_LENGTH_MAX_];
   string1[0]='\0';
+  string2[0]='\0';
 
   /** 1) DM annihilation */
   /** 1.a) Annihilation efficiency */
@@ -3454,11 +3455,13 @@ int input_read_parameters_injection(struct file_content * pfc,
   class_read_double("DM_decay_fraction",pin->DM_decay_fraction);
   if (pin->DM_decay_fraction!=0){
     pth->has_exotic_injection = _TRUE_;
+    class_read_double("DM_decay_mass",pin->DM_decay_mass);
+
   }
   /* Test */
-  class_test(pin->DM_decay_fraction<0,
+  class_test(pin->DM_decay_fraction<0 || pin->DM_decay_mass <0,
              errmsg,
-             "You need to enter a positive fraction of decaying DM. Please adjust your param file.");
+             "You need to enter a positive fraction of decaying DM and mass. Please adjust your param file.");
 
   /** 2.b) Decay width */
   /* Read */
@@ -3579,9 +3582,202 @@ int input_read_parameters_injection(struct file_content * pfc,
       /* Complete set of parameters */
       strcpy(pin->f_eff_file, string1);
     }
+    else if (strcmp(string1,"DarkAges") == 0){
+      pin->f_eff_type = DarkAges;
+      class_call(parser_read_string(pfc,"DarkAges_mode",&string1,&flag1,errmsg),
+                 errmsg,
+                 errmsg);
+
+      if (flag1 == _TRUE_){
+        flag2 = _FALSE_;
+        /*
+         If an DarkAgesModule command is passed, we are automatically "beyond on-the-spot".
+        */
+        if (strcmp(string1,"built_in") == 0) {
+          flag2=_TRUE_;
+          sprintf(pin->command_fz,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
+          strcat(pin->command_fz, "python ");
+          strcat(pin->command_fz,__CLASSDIR__);
+
+          /* Check first if injection history is standard and already implemented */
+
+          /* Automatic comand for annihialtion without halo boost*/
+          if(pin->DM_annihilation_efficiency > 0 && pin->DM_annihilation_f_halo == 0){
+            strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=annihilation --spectrum ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
+            strcat(pin->command_fz," --branching ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_branching_ratio",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_branching_ratio is empty!! You need to give a list of number (<=1) (as many as there are injected particles) with a SPACE (no comas) between each of them. The sum MUST add to 1.\n");
+            strcat(pin->command_fz," --mass=");
+            sprintf(string2,"%g",pin->DM_annihilation_mass);
+            strcat(pin->command_fz,string2);
+          }
+
+          /* Automatic comand for annihialtion with halo boost*/
+          else if(pin->DM_annihilation_efficiency > 0 && pin->DM_annihilation_f_halo > 0){
+            strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=annihilation_halos --spectrum ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
+            strcat(pin->command_fz," --branching ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_branching_ratio",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_branching_ratio is empty!! You need to give a list of number (<=1) (as many as there are injected particles) with a SPACE (no comas) between each of them. The sum MUST add to 1.\n");
+            strcat(pin->command_fz," --mass=");
+            sprintf(string2,"%g",pin->DM_annihilation_mass);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --fh=");
+            sprintf(string2,"%g",pin->DM_annihilation_f_halo);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --zh=");
+            sprintf(string2,"%g",pin->DM_annihilation_z_halo);
+            strcat(pin->command_fz,string2);
+          }
+
+          /* Automatic command for PBH evaporation */
+          else if(pin->PBH_evaporation_mass > 0){
+            strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=evaporating_PBH --mass=");
+            sprintf(string2,"%g",pin->PBH_evaporation_mass);
+            strcat(pin->command_fz,string2);
+          }
+
+          /* Automatic command for PBH accretion */
+          else if (pin->PBH_accretion_mass > 0){
+            strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=accreting_PBH --mass=");
+            sprintf(string2,"%g",pin->PBH_accretion_mass);
+            strcat(pin->command_fz,string2);
+            if(pin->PBH_accretion_recipe==spherical_accretion)
+              strcat(pin->command_fz," --accretion_recipe=spherical_accretion");
+            else if(pin->PBH_accretion_recipe==disk_accretion)
+              strcat(pin->command_fz," --accretion_recipe=disk_accretion");
+            strcat(pin->command_fz," --Log10Emin=0 --Log10Emax=5.5 --nbins_table=20");
+          }
+
+          /* Automatic command for decaying dark matter */
+          else if(pin->DM_decay_fraction > 0){
+            strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=decay --spectrum ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
+            class_test(pin->DM_decay_mass <= 0.,errmsg,
+              "When using DarkAges for decaying dark matter you need to specify the mass, such that the right refernce spectrum can be taken. Please revise your input and include an entry for 'DM_mass'");
+            strcat(pin->command_fz," --mass=");
+            sprintf(string2,"%g",pin->DM_decay_mass);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --branching ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_branching_ratio",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_branching_ratio is empty!! You need to give a list of number (<=1) (as many as there are injected particles) with a SPACE (no comas) between each of them. The sum MUST add to 1.\n");
+            strcat(pin->command_fz," --tdec=");
+            sprintf(string2,"%g",_Mpc_over_m_*1e-3/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
+            strcat(pin->command_fz,string2);
+          }
+
+          class_call(parser_read_string(pfc,
+                                      "YAML file",
+                                      &(string2),
+                                      &(flag3),
+                                      errmsg),
+                                      errmsg,
+                                      errmsg);
+
+          if(flag3 == _TRUE_){
+              strcat(pin->command_fz," --extra-options=");
+              strcat(pin->command_fz,string2);
+          }
+          /* If we use DarkAges and "pth->energy_repart_coefficient" is not set
+             to "no_factorization", we need to tell DarkAges to return a compressed
+             table which only contains f(z) instead of f_c(z) */
+         class_call(parser_read_string(pfc,"chi_type",&string1,&flag1,errmsg),
+                    errmsg,
+                    errmsg);
+          if(strcmp(string1,"from_x_file") == 0){
+            strcat(pin->command_fz," --return_f_eff_table");
+          }
+        }
+
+        /* If the story is not implemented */
+        /* Reading the input parameter for the external command */
+        else if (strcmp(string1,"user_command") == 0){
+          flag2=_TRUE_;
+          sprintf(pin->command_fz,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
+
+          class_call( parser_read_string(pfc,"DarkAges_command",&string2,&flag2,errmsg), errmsg, errmsg);
+          class_test(strlen(string2) == 0, errmsg, "You omitted to write a command to calculate the f(z) externally");
+          strcat(pin->command_fz, string2);
+          /** An arbitrary number of external parameters to be used by the external command */
+          class_read_double("DarkAges_par1",pin->param_fz_1);
+          class_read_double("DarkAges_par2",pin->param_fz_2);
+          class_read_double("DarkAges_par3",pin->param_fz_3);
+          class_read_double("DarkAges_par4",pin->param_fz_4);
+          class_read_double("DarkAges_par5",pin->param_fz_5);
+
+          sprintf(string2, " %g %g %g %g %g", pin->param_fz_1, pin->param_fz_2, pin->param_fz_3, pin->param_fz_4, pin->param_fz_5);
+          strcat(pin->command_fz,string2);
+
+          class_call(parser_read_string(pfc,
+                                      "YAML file",
+                                      &(string2),
+                                      &(flag3),
+                                      errmsg),
+                                      errmsg,
+                                      errmsg);
+
+          if(flag3 == _TRUE_){
+            strcat(pin->command_fz," --extra-options=");
+            strcat(pin->command_fz,string2);
+          }
+          /* If we use DarkAges and "pth->energy_repart_coefficient" is not set
+             to "no_factorization", we need to tell DarkAges to return a compressed
+             table which only contains f(z) instead of f_c(z) */
+           class_call(parser_read_string(pfc,"chi_type",&string1,&flag1,errmsg),
+                      errmsg,
+                      errmsg);
+            if(strcmp(string1,"no_factorization") == 0){
+              strcat(pin->command_fz," --return_f_eff_table");
+            }
+        }
+
+        class_test(flag2==_FALSE_,errmsg,
+          "Could not identify DarkAges_mode, check that it is either 'built_in' or 'user_command'.");
+      }
+      else{
+        class_test(flag1==_FALSE_, errmsg,
+          "You did not precise DarkAges_mode, check that it is either 'built_in' or 'user_command'.");
+      }
+
+
+    }
     else{
       class_stop(errmsg,
-                 "You specified 'f_eff_type' as '%s'. It has to be one of {'on_the_spot','from_file'}.",string1);
+                 "You specified 'f_eff_type' as '%s'. It has to be one of {'on_the_spot','from_file','DarkAges'}.",string1);
     }
   }
 
@@ -3613,9 +3809,12 @@ int input_read_parameters_injection(struct file_content * pfc,
     else if (strcmp(string1,"from_z_file") == 0){
       pin->chi_type = chi_from_z_file;
     }
+    else if (strcmp(string1,"no_factorization") == 0){
+      pin->chi_type = no_factorization;
+    }
     else{
       class_stop(errmsg,
-                 "You specified 'chi_type' as '%s'. It has to be one of {'CK_2004','PF_2005','Galli_2013_file','Galli_2013_analytic','heat','from_x_file','from_z_file'}.",string1);
+                 "You specified 'chi_type' as '%s'. It has to be one of {'CK_2004','PF_2005','Galli_2013_file','Galli_2013_analytic','heat','from_x_file','from_z_file','no_factorization'}.",string1);
     }
   }
 
