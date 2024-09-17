@@ -1161,7 +1161,8 @@ int harmonic_compute_cl(
             primordial_pk[index_ic1_ic2]
             * transfer_ic1[ptr->index_tt_lensing+index_d1]
             * transfer_ic2[ptr->index_tt_lensing+index_d2]
-            * factor;
+            * factor
+            * phr->A_lens;
           index_ct++;
         }
       }

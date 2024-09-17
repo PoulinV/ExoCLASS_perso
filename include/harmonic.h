@@ -114,6 +114,7 @@ struct harmonic {
   double ** cl;   /**< table of anisotropy spectra for each mode, multipole, pair of initial conditions and types, cl[index_md][(index_l * phr->ic_ic_size[index_md] + index_ic1_ic2) * phr->ct_size + index_ct] */
   double ** ddcl; /**< second derivatives of previous table with respect to l, in view of spline interpolation */
 
+  double A_lens;
   //@}
 
   /** @name - technical parameters */

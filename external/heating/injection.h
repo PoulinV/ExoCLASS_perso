@@ -7,8 +7,8 @@
  * All injection parameters and evolution that other modules need to know.
  */
 enum PBH_accretion_approx {spherical_accretion, disk_accretion};
-enum f_eff_approx {f_eff_on_the_spot, f_eff_from_file};
-enum chi_approx {chi_CK, chi_PF, chi_Galli_file, chi_Galli_analytic, chi_full_heating, chi_from_x_file, chi_from_z_file};
+enum f_eff_approx {f_eff_on_the_spot, f_eff_from_file, DarkAges};
+enum chi_approx {chi_CK, chi_PF, chi_Galli_file, chi_Galli_analytic, chi_full_heating, chi_from_x_file, chi_from_z_file, no_factorization};
 
 struct injection{
 
@@ -31,6 +31,7 @@ struct injection{
 
   double DM_decay_fraction;
   double DM_decay_Gamma;
+  double DM_decay_mass;
 
   double PBH_evaporation_fraction;
   double PBH_evaporation_mass;
@@ -45,6 +46,16 @@ struct injection{
   /* Injection efficiency */
   int f_eff_type;
   FileName f_eff_file;
+
+  /* Parameters related to calling an external code to calculate f(z) */
+  short fz_is_extern; /**< flag to specify if the fz_functions are given in a file or are calculated externally */
+  FileName  command_fz;  /**< string with the command for calling 'external_fz' */
+  double param_fz_1;  /**< one parameter used in 'external_fz' */
+  double param_fz_2;  /**< one parameter used in 'external_fz' */
+  double param_fz_3;  /**< one parameter used in 'external_fz' */
+  double param_fz_4;  /**< one parameter used in 'external_fz' */
+  double param_fz_5;  /**< one parameter used in 'external_fz' */
+
 
   /* Deposition function and injection efficiency */
   int chi_type;
@@ -173,6 +184,7 @@ struct injection{
   int to_store;
 
   /* Book-keeping */
+  short injection_verbose; /**< flag regulating the amount of information sent to standard output (none if set to zero) */
 
   ErrorMsg error_message;
 

@@ -104,7 +104,12 @@ int injection_init(struct precision * ppr,
                                              pin->f_eff_file),
                pin->error_message,
                pin->error_message);
-  }
+  }  else if(pin->f_eff_type == DarkAges && pin->chi_type != no_factorization){
+    class_call(injection_read_feff_from_file(ppr,pin,
+                                             pin->f_eff_file),
+               pin->error_message,
+               pin->error_message);
+      }
 
   /** - Initialize deposition function */
   /* Allocate space */
@@ -131,6 +136,13 @@ int injection_init(struct precision * ppr,
                pin->error_message,
                pin->error_message);
   }
+  else if(pin->f_eff_type == DarkAges && pin->chi_type == no_factorization){
+      class_call(injection_read_chi_z_from_file(ppr,pin,
+                                                pin->chi_z_file),
+                 pin->error_message,
+                 pin->error_message);
+    }
+
 
   /** - Initialize energy deposition table */
   /* Allocate space */
@@ -1147,7 +1159,18 @@ int injection_read_feff_from_file(struct precision* ppr,
    *    - The number of lines of the file
    *    - The columns ( z, f(z) ) where f(z) represents the "effective" fraction of energy deposited
    *      into the medium  at redshift z, in presence of halo formation. */
-  class_open(fA, f_eff_file, "r", pin->error_message);
+
+
+   if (pin->f_eff_type==DarkAges) {
+     if (pin->injection_verbose > 0) {
+       printf(" -> running: %s\n", pin->command_fz);
+     }
+     fflush(fA);
+     fA = popen(pin->command_fz, "r");
+     class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
+   } else {
+     class_open(fA, f_eff_file, "r", pin->error_message);
+   }
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,fA) != NULL) {
     headlines++;
@@ -1228,6 +1251,7 @@ int injection_read_chi_z_from_file(struct precision* ppr,
   char * left;
   int headlines = 0;
   int index_z,index_dep;
+  char command_with_arguments[2*_ARGUMENT_LENGTH_MAX_];
 
   pin->chiz_size = 0;
 
@@ -1236,7 +1260,20 @@ int injection_read_chi_z_from_file(struct precision* ppr,
    *    - The columns (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE) where chi_i represents the
    *      branching ratio at redshift z into different injection/ionization channels i */
 
-  class_open(fA, chi_z_file, "r", pin->error_message);
+  if(pin->f_eff_type == DarkAges){
+    /* Write the command */
+    sprintf(command_with_arguments, "%s", pin->command_fz);
+    // free(ppr->command_fz);
+    if (pin->injection_verbose > 0) {
+      printf(" -> running: %s\n", command_with_arguments);
+    }
+    /* Launch the process and retrieve the output */
+    fflush(fA);
+    fA = popen(command_with_arguments, "r");
+    class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
+  }else{
+      class_open(fA, chi_z_file, "r", pin->error_message);
+  }
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,fA) != NULL) {
     headlines++;
