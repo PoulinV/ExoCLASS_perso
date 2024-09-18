@@ -35,7 +35,7 @@ int injection_init(struct precision * ppr,
   pin->last_index_x_chi = 0;
   pin->last_index_z_chi = 0;
   pin->last_index_z_feff = 0;
-
+  pin->injection_verbose = pth->thermodynamics_verbose;
   /** - Import quantities from other structures */
   /* Precision structure */
   pin->Nz_size = ppr->thermo_Nz_lin;
@@ -244,6 +244,9 @@ int injection_free(struct thermodynamics* pth){
   if(pin->f_eff_type == f_eff_from_file){
     free(pin->feff_table);
   }
+  if(pin->f_eff_type == DarkAges && pin->chi_type != no_factorization){
+    free(pin->feff_table);
+  }
   if(pin->chi_type == chi_from_z_file){
     free(pin->chiz_table);
   }
@@ -352,6 +355,7 @@ int injection_calculate_at_z(struct background* pba,
   /** - Put result into deposition vector */
   for(index_dep = 0; index_dep < pin->dep_size; ++index_dep){
     pin->pvecdeposition[index_dep] = pin->chi[index_dep]*dEdt_inj;
+    // printf("dep %e chi %e \n",dEdt_inj, pin->chi[index_dep]);
   }
 
   /** - Store z values in table */
@@ -618,6 +622,22 @@ int injection_deposition_function_at_z(struct injection* pin,
                    pin->error_message);
       }
     }
+    else if(pin->chi_type == no_factorization && pin->f_eff_type == DarkAges){
+      for(index_dep=0;index_dep<pin->dep_size;++index_dep){
+        class_call(array_interpolate_spline_transposed(pin->chiz_table,
+                                                       pin->chiz_size,
+                                                       2*pin->dep_size+1,
+                                                       0,
+                                                       index_dep+1,
+                                                       index_dep+pin->dep_size+1,
+                                                       z,
+                                                       &pin->last_index_z_chi,
+                                                       &(pin->chi[index_dep]),
+                                                       pin->error_message),
+                   pin->error_message,
+                   pin->error_message);
+      }
+    }
     else{
       class_stop(pin->error_message,"No valid deposition function has been found found.");
     }
@@ -625,7 +645,7 @@ int injection_deposition_function_at_z(struct injection* pin,
 
   /** - Read the correction factor f_eff */
   /* For the on the spot, we take the user input */
-  if(pin->f_eff_type == f_eff_on_the_spot){
+  if(pin->f_eff_type == f_eff_on_the_spot ){
     // pin->f_eff has already been seet by user
   }
   /* For the file, read in f_eff from file and multiply */
@@ -642,6 +662,21 @@ int injection_deposition_function_at_z(struct injection* pin,
                                                    pin->error_message),
                pin->error_message,
                pin->error_message);
+  }else if(pin->f_eff_type == DarkAges &&  pin->chi_type != no_factorization){
+    class_call(array_interpolate_spline_transposed(pin->feff_table,
+                                                   pin->feff_z_size,
+                                                   3,
+                                                   0,
+                                                   1,
+                                                   2,
+                                                   z,
+                                                   &(pin->last_index_z_feff),
+                                                   &(pin->f_eff),
+                                                   pin->error_message),
+               pin->error_message,
+               pin->error_message);
+  }else if(pin->f_eff_type == DarkAges &&  pin->chi_type == no_factorization){
+    // pin->f_eff has already been seet by user
   }
   /* Otherwise, something must have gone wrong */
   else{
@@ -755,7 +790,6 @@ int injection_rate_DM_annihilation(struct injection * pin,
 int injection_rate_DM_decay(struct injection * pin,
                             double z,
                             double * energy_rate){
-
   /** - Calculate injection rates */
   *energy_rate = pin->rho_cdm*pin->DM_decay_fraction*pin->DM_decay_Gamma*
                  exp(-pin->DM_decay_Gamma*pin->t);                                                  // [J/(m^3 s)]
@@ -1146,7 +1180,7 @@ int injection_read_feff_from_file(struct precision* ppr,
                                   char* f_eff_file){
 
   /** - Define local variables */
-  FILE * fA;
+  FILE * fA = NULL;
   char line[_LINE_LENGTH_MAX_];
   char * left;
   int headlines = 0;
@@ -1246,7 +1280,7 @@ int injection_read_chi_z_from_file(struct precision* ppr,
                                    char* chi_z_file){
 
   /** Define local variables */
-  FILE * fA;
+  FILE * fA = NULL;
   char line[_LINE_LENGTH_MAX_];
   char * left;
   int headlines = 0;
@@ -1259,7 +1293,7 @@ int injection_read_chi_z_from_file(struct precision* ppr,
    *    - The number of lines of the file
    *    - The columns (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE) where chi_i represents the
    *      branching ratio at redshift z into different injection/ionization channels i */
-
+   // printf("here!!\n");
   if(pin->f_eff_type == DarkAges){
     /* Write the command */
     sprintf(command_with_arguments, "%s", pin->command_fz);
@@ -1267,9 +1301,11 @@ int injection_read_chi_z_from_file(struct precision* ppr,
     if (pin->injection_verbose > 0) {
       printf(" -> running: %s\n", command_with_arguments);
     }
-    /* Launch the process and retrieve the output */
+
     fflush(fA);
+
     fA = popen(command_with_arguments, "r");
+
     class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
   }else{
       class_open(fA, chi_z_file, "r", pin->error_message);
