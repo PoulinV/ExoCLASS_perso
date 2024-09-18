@@ -3456,6 +3456,12 @@ int input_read_parameters_injection(struct file_content * pfc,
   if (pin->DM_decay_fraction!=0){
     pth->has_exotic_injection = _TRUE_;
     class_read_double("DM_decay_mass",pin->DM_decay_mass);
+    /** 2.b) Decay width */
+    /* Read */
+    class_read_double("DM_decay_Gamma",pin->DM_decay_Gamma); //in seconds^-1
+    class_test(pin->DM_decay_Gamma<=0,
+               errmsg,
+               "You have DM_decay_fraction >0 but Gamma [s^-1] is negative or not set. Please adjust your param file.");
 
   }
   /* Test */
@@ -3463,9 +3469,6 @@ int input_read_parameters_injection(struct file_content * pfc,
              errmsg,
              "You need to enter a positive fraction of decaying DM and mass. Please adjust your param file.");
 
-  /** 2.b) Decay width */
-  /* Read */
-  class_read_double("DM_decay_Gamma",pin->DM_decay_Gamma);
 
 
   /** 3) PBH evaporation */
@@ -3696,7 +3699,7 @@ int input_read_parameters_injection(struct file_content * pfc,
             class_test(strcmp(string2,"") == 0,errmsg,
               "The field injected_particle_branching_ratio is empty!! You need to give a list of number (<=1) (as many as there are injected particles) with a SPACE (no comas) between each of them. The sum MUST add to 1.\n");
             strcat(pin->command_fz," --tdec=");
-            sprintf(string2,"%g",_Mpc_over_m_*1e-3/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
+            sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
             strcat(pin->command_fz,string2);
           }
 
@@ -3718,7 +3721,7 @@ int input_read_parameters_injection(struct file_content * pfc,
          class_call(parser_read_string(pfc,"chi_type",&string1,&flag1,errmsg),
                     errmsg,
                     errmsg);
-          if(strcmp(string1,"from_x_file") == 0){
+          if(strcmp(string1,"no_factorization") != 0 && flag1 == _TRUE_){
             strcat(pin->command_fz," --return_f_eff_table");
           }
         }
@@ -3760,7 +3763,7 @@ int input_read_parameters_injection(struct file_content * pfc,
            class_call(parser_read_string(pfc,"chi_type",&string1,&flag1,errmsg),
                       errmsg,
                       errmsg);
-            if(strcmp(string1,"no_factorization") == 0){
+            if(strcmp(string1,"no_factorization") != 0 && flag1 == _TRUE_){
               strcat(pin->command_fz," --return_f_eff_table");
             }
         }
@@ -3816,6 +3819,11 @@ int input_read_parameters_injection(struct file_content * pfc,
       class_stop(errmsg,
                  "You specified 'chi_type' as '%s'. It has to be one of {'CK_2004','PF_2005','Galli_2013_file','Galli_2013_analytic','heat','from_x_file','from_z_file','no_factorization'}.",string1);
     }
+  }
+
+  if(pin->f_eff_type == DarkAges && flag1 == _FALSE_){
+    //default is no factorization for DarkAges usage.
+    pin->chi_type = no_factorization;
   }
 
   if (pin->chi_type == chi_from_x_file || pin->chi_type == chi_from_z_file){
