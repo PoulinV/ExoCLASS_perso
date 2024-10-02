@@ -82,9 +82,9 @@ def transfer_dump(transfer_instance, outfile):
 		Filename (absolute or relative) under which the transfer instance should be stored
 	"""
 
-	if not isinstance(transfer_instance, transfer):
-		from .__init__ import DarkAgesError
-		raise DarkAgesError('You did not include a proper instance of the class "transfer"')
+	#if not isinstance(transfer_instance, transfer):
+	#	from .__init__ import DarkAgesError
+	#	raise DarkAgesError('You did not include a proper instance of the class "transfer"')
 	with open(outfile, 'wb') as f_dump:
 		dill.dump(transfer_instance, f_dump)
 	return
@@ -105,19 +105,19 @@ def transfer_load(infile):
 	"""
 
 	loaded_transfer = dill.load(open(infile, 'rb'))
-	if not isinstance(loaded_transfer, transfer):
-		from .__init__ import DarkAgesError
-		raise DarkAgesError('The file {0} does not provide a proper instance of the class "transfer"'.format(infile))
-	else:
-		return loaded_transfer
+	#if not isinstance(loaded_transfer, transfer):
+	#	from .__init__ import DarkAgesError
+	#	raise DarkAgesError('The file {0} does not provide a proper instance of the class "transfer"'.format(infile))
+	#else:
+	return loaded_transfer
 
 def transfer_combine(*transfer_instances):
 	if transfer_instances is None:
 		raise DarkAgesError('The method "transfer_combine" expects at least one positional argument')
 	first_time_in_loop = True
 	for single_transfer in transfer_instances:
-		if not isinstance(single_transfer,transfer):
-			raise DarkAgesError('You did not include a proper instance of the class "transfer"')
+		#if not isinstance(single_transfer,transfer):
+		#	raise DarkAgesError('You did not include a proper instance of the class "transfer"')
 		if first_time_in_loop:
 			first_time_in_loop = False
 			transfer_to_return = _dcp(single_transfer)
