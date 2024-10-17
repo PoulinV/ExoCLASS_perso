@@ -2147,6 +2147,9 @@ int input_read_parameters_general(struct file_content * pfc,
     else if ((strstr(string1,"HYREC") != NULL) || (strstr(string1,"hyrec") != NULL) || (strstr(string1,"HyRec") != NULL)){
       pth->recombination = hyrec;
     }
+    else if ((strstr(string1,"DARKHISTORY") != NULL) || (strstr(string1,"darkhistory") != NULL) || (strstr(string1,"DarkHistory") != NULL) || (strstr(string1,"Darkhistory") != NULL)){
+      pth->recombination = darkhistory;
+    }
     else{
       class_stop(errmsg,
                  "You specified 'recombination' as '%s'. It has to be one of {'recfast','hyrec'}.",string1);
@@ -3841,8 +3844,17 @@ int input_read_parameters_injection(struct file_content * pfc,
     strcpy(pin->chi_x_file, string1);
   }
 
-  return _SUCCESS_;
+  /** 7) DarkHistory inputs */
+  class_call(parser_read_string(pfc, 
+                                "DH file name", 
+                                &(string1), 
+                                &(flag1), 
+                                errmsg), 
+             errmsg, 
+             errmsg);
+  strcpy(pth->DH_file_name, string1);
 
+  return _SUCCESS_;
 }
 
 
