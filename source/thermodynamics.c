@@ -327,6 +327,10 @@ int thermodynamics_init(
       printf("Computing thermodynamics using HyRec 2020\n");
       break;
 
+    case darkhistory:
+      printf("Computing thermodynamics using DarkHistory\n");
+      break;
+
     default:
       class_stop(pth->error_message,"pth->recombination=%d different from all known cases",pth->recombination);
       break;
@@ -452,6 +456,14 @@ int thermodynamics_free(
   free(pth->tau_table);
   free(pth->thermodynamics_table);
   free(pth->d2thermodynamics_dz2_table);
+
+  switch (pth->recfast_photoion_mode) {
+    case darkhistory:
+      free(pth->DH_table); // freeing DarkHistory table
+      break;
+    default:
+      break;
+  }
 
   class_call(thermodynamics_free_input(pth),
              pth->error_message,
@@ -893,6 +905,20 @@ int thermodynamics_workspace_init(
 
   switch (pth->recombination) {
 
+  case darkhistory:
+    // If running DarkHistory, this is basically the Hyrec option but filling out the thermodynamics_table from file
+    class_alloc(ptw->ptdw->phyrec,
+                sizeof(struct thermohyrec),
+                pth->error_message);
+    class_call(thermodynamics_hyrec_init(ppr,pba,pth,ptw->SIunit_nH0,pba->T_cmb,ptw->fHe, ptw->ptdw->ap_z_limits[ptw->ptdw->index_ap_brec],ptw->ptdw->phyrec),
+               ptw->ptdw->phyrec->error_message,
+               pth->error_message);
+    // Load in DarkHistory data from file
+    class_call(injection_read_DH_from_file(pth),
+               ptw->ptdw->phyrec->error_message,
+               pth->error_message);
+    break;
+
   case hyrec:
     class_alloc(ptw->ptdw->phyrec,
                 sizeof(struct thermohyrec),
@@ -949,6 +975,8 @@ int thermodynamics_indices(
   int index_th;
   /* a running index for the vector of reionization parameters */
   int index_re;
+  /* a running index for DarkHistory quantities */
+  int index_DH;
 
   /** - initialization of all indices and flags in thermodynamics structure */
   index_th = 0;
@@ -1875,6 +1903,7 @@ int thermodynamics_workspace_free(
 
   switch (pth->recombination) {
 
+  case darkhistory:
   case hyrec:
     class_call(thermodynamics_hyrec_free(ptw->ptdw->phyrec),
                ptw->ptdw->phyrec->error_message,
@@ -2660,6 +2689,7 @@ int thermodynamics_derivs(
 
     break;
   case hyrec:
+  case darkhistory:
     /* Hydrogen equations */
     if (ptdw->require_H == _TRUE_) {
       class_call(hyrec_dx_H_dz(pth,ptw->ptdw->phyrec,x_H,x_He,x,nH,z,Hz,Tmat,Trad,alpha,me,&(dy[ptv->index_ti_x_H])),
@@ -2913,6 +2943,9 @@ int thermodynamics_sources(
   struct thermo_diffeq_workspace * ptdw;
   struct thermo_vector * ptv;
   int ap_current;
+  // For interpolating DarkHistory table
+  int last_index; // dummy index?
+  double pvecDH[2*pth->DH_th_size]; // is this correct way to initialize vector?
 
   /* Redshift */
   z = -mz;
@@ -2943,11 +2976,8 @@ int thermodynamics_sources(
              error_message);
 
   /* Assign local variables (note that pvecback is filled through derivs) */
+  /* First, things that don't require DarkHistory to calculate*/
   Trad = ptw->Tcmb*(1.+z);
-  Tmat = y[ptv->index_ti_D_Tmat] + Trad;
-  /* Note that dy[index_ti_Q] represents dQ/d(-z), thus we need -dy here */
-  dTmat = -dy[ptv->index_ti_D_Tmat] + Trad/(1.+z);
-
   /* Get sigmaT rescale factor from fundamental constants */
   if (pth->has_varconst == _TRUE_) {
     class_call(background_varconst_of_z(pba, z, &alpha, &me),
@@ -2956,8 +2986,34 @@ int thermodynamics_sources(
     sigmaTrescale = alpha*alpha/me/me;
   }
 
-  /* get x */
-  x = ptdw->x_reio;
+  /* Next, quantities that depends on whether recfast/hyrec or DarkHistory was used*/
+  switch (pth->recombination){
+
+    case darkhistory:
+      class_call(array_interpolate(pth->DH_table,
+                                   2*pth->DH_th_size+1,
+                                   pth->DH_z_size,
+                                   0, // redshift should be in first column...should we avoid hardcoding this?
+                                   z,
+                                   &last_index, // what is this
+                                   pvecDH,
+                                   pth->DH_th_size,
+                                   pth->error_message),
+                 pth->error_message,
+                 pth->error_message);
+      x = pvecDH[pth->index_DH_xe];
+      Tmat = pvecDH[pth->index_DH_Tmat];
+      dTmat = pvecDH[pth->index_DH_dTmat];
+      break;
+
+    default:
+      Tmat = y[ptv->index_ti_D_Tmat] + Trad;
+      /* Note that dy[index_ti_Q] represents dQ/d(-z), thus we need -dy here */
+      dTmat = -dy[ptv->index_ti_D_Tmat] + Trad/(1.+z);
+      /* get x */
+      x = ptdw->x_reio;
+      break;
+  }
 
   /** - In the recfast case, we manually smooth the results a bit */
 
@@ -4760,6 +4816,95 @@ int thermodynamics_idm_initial_temperature(
   ptdw->T_idm = (alpha + beta + epsilon * pba->T_idr/pba->T_cmb)/(1.+epsilon+alpha+beta) * pba->T_cmb * (1.+z_ini);
 
   free(pvecback);
+
+  return _SUCCESS_;
+}
+
+
+/**
+ * Read and interpolate the DarkHistory inputs from external file.
+ *
+ * @param pth   Input/Output: pointer to thermodynamics structure
+ * @return the error status
+ */
+int injection_read_DH_from_file(struct thermodynamics * pth){
+  /** - Define local variables */
+  FILE *DH_input;
+  char line[_LINE_LENGTH_MAX_];
+  char * left;
+  int numentries, ncols, nxe, nTb, headlines, index_DH, index_z, index_thermo;
+
+  /** Assign initial vales */
+  headlines = 0;
+  pth->DH_z_size = 0;
+
+  /** Define indices for DarkHistory table */
+  index_DH = 1; // start at 1 because skipping redshift at index 0
+  class_define_index(pth->index_DH_xe,_TRUE_,index_DH,1);
+  class_define_index(pth->index_DH_Tmat,_TRUE_,index_DH,1);
+  class_define_index(pth->index_DH_dTmat,_TRUE_,index_DH,1);
+  pth->DH_th_size = index_DH-1; // subtract one because not including redshift
+
+  /** Open file */
+  class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
+  while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
+      headlines++;
+
+      /* Eliminate blank spaces at beginning of line */
+      left=line;
+      while (left[0]==' ') {
+        left++;
+      }
+
+      /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
+          be the beginning of some data (it is not a newline, a #, a %, etc.) */
+      if (left[0] > 39) {
+          /* If the line contains data, we must interprete it. If at 0th line, the current line must contain
+              its value. Otherwise, it must contain (z , xe, Tmat, dTmat). */
+
+          /* Read num_lines, infer size of arrays and allocate them */
+          class_test(sscanf(line,"%d",&(pth->DH_z_size)) != 1,
+                      pth->error_message,
+                      "could not read the initial integer of number of lines in line %i in file '%s' \n",
+                      headlines,pth->DH_file_name);
+
+          break;
+    }
+  }
+
+  /** Allocate space for DarkHistory table */
+  class_alloc(pth->DH_table,(2*pth->DH_th_size+1)*pth->DH_z_size*sizeof(double),pth->error_message);
+
+  /** - Read file */
+  for(index_z=0;index_z<pth->DH_z_size;++index_z){
+    /* Read thermodynamics data */
+    class_test(fscanf(DH_input,"%lg %lg %lg %lg",
+                      &(pth->DH_table[index_z*(2*pth->DH_th_size+1)+0]),  // z
+                      &(pth->DH_table[index_z*(2*pth->DH_th_size+1)+pth->index_DH_xe]),  // xe
+                      &(pth->DH_table[index_z*(2*pth->DH_th_size+1)+pth->index_DH_Tmat]),  // Tmat
+                      &(pth->DH_table[index_z*(2*pth->DH_th_size+1)+pth->index_DH_dTmat])   // dTmat
+                     ) != 4,
+               pth->error_message,
+               "could not read value of parameters coefficients in line %i in file '%s'\n",
+               headlines,pth->DH_file_name);
+  }
+  /** Close file */
+  fclose(DH_input);
+
+  /** - Spline file contents */
+  /* Spline in one dimension */
+  for(index_thermo=0;index_thermo<pth->DH_th_size;++index_thermo){
+    class_call(array_spline(pth->DH_table,
+                            2*pth->DH_th_size+1,
+                            pth->DH_z_size,
+                            0,
+                            1+index_thermo,
+                            1+index_thermo+pth->DH_th_size,
+                            _SPLINE_NATURAL_,
+                            pth->error_message),
+              pth->error_message,
+              pth->error_message);
+  }
 
   return _SUCCESS_;
 }

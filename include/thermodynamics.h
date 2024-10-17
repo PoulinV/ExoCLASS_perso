@@ -16,7 +16,8 @@
 
 enum recombination_algorithm {
                               recfast,
-                              hyrec
+                              hyrec,
+                              darkhistory
 };
 
 /**
@@ -170,6 +171,15 @@ struct thermodynamics
 
   double annihilation_f_halo; /**< takes the contribution of DM annihilation in halos into account*/
   double annihilation_z_halo; /**< characteristic redshift for DM annihilation in halos*/
+
+  /** DarkHistory quantities */
+  char DH_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input
+  double* DH_table; // table to store thermodynamics history
+  int DH_z_size; // number of lines read into table
+  int DH_th_size; // number of thermodynamics quantities. Usually 3 for xe, Tmat, and dTmat
+  int index_DH_xe;
+  int index_DH_Tmat;
+  int index_DH_dTmat;
 
   /** parameters for varying fundamental constants */
 
@@ -405,6 +415,7 @@ struct thermo_diffeq_workspace {
   struct thermo_vector * ptv;       /**< pointer to vector of integrated quantities and their time-derivatives */
   struct thermohyrec * phyrec;     /**< pointer to wrapper of HyRec structure */
   struct thermorecfast * precfast; /**< pointer to wrapper of RecFast structure */
+  struct thermoDH * pDH;           /**< pointer to wrapper of DarkHistory (DH) structure */
 
 };
 
@@ -674,6 +685,8 @@ extern "C" {
                                              struct thermodynamics* pth,
                                              double z_ini,
                                              struct thermo_diffeq_workspace * ptdw);
+
+  int injection_read_DH_from_file(struct thermodynamics * pth);
 
 #ifdef __cplusplus
 }
