@@ -2944,8 +2944,9 @@ int thermodynamics_sources(
   struct thermo_vector * ptv;
   int ap_current;
   // For interpolating DarkHistory table
-  int last_index; // dummy index?
-  double pvecDH[2*pth->DH_th_size]; // is this correct way to initialize vector?
+  int last_index; // dummy index
+  double * pvecDH;
+  class_alloc(pvecDH,(pth->DH_th_size+1)*sizeof(double),pth->error_message);
 
   /* Redshift */
   z = -mz;
@@ -2997,7 +2998,7 @@ int thermodynamics_sources(
                                    z,
                                    &last_index, // what is this
                                    pvecDH,
-                                   pth->DH_th_size,
+                                   pth->DH_th_size+1,
                                    pth->error_message),
                  pth->error_message,
                  pth->error_message);
@@ -3076,6 +3077,8 @@ int thermodynamics_sources(
     pth->thermodynamics_table[(pth->tt_size-index_z-1)*pth->th_size + pth->index_th_dmu_idr] = ptdw->dmu_idr;
   }
 
+  // free vector used to interpolate DH table
+  free(pvecDH); 
   return _SUCCESS_;
 }
 
