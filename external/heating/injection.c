@@ -99,22 +99,25 @@ int injection_init(struct precision * ppr,
                pin->error_message);
   }
   if(pin->PBH_spike_fraction > 0.){
-    sprintf(pin->command_PBH_spike,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
-    strcat(pin->command_PBH_spike, "python ");
-    strcat(pin->command_PBH_spike,__CLASSDIR__);
-    strcat(pin->command_PBH_spike,"/External/heating/interpolate_DM_spike_decay_rate.py 100 ");
-    sprintf(string2,"");
-    // double omega_cdm = ;
-    sprintf(string2,"%g %g %g %g %g %g",pin->PBH_spike_mass,pin->PBH_spike_fraction,pin->DM_annihilation_mass,pin->PBH_spike_xkd,pin->DM_annihilation_cross_section,pba->Omega0_cdm*pba->h*pba->h);
-    // strcat(pin->command_fz,string2);
-    // sprintf(string2,"");
-    // sprintf(string2,"%g");
-    strcat(pin->command_PBH_spike,string2);
-    // sprintf(string2,"%g");
-    // strcat(pin->command_fz,string2);
+    if(pin->PBH_spike_type == JulienScript){
+      sprintf(pin->command_PBH_spike,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
+      strcat(pin->command_PBH_spike, "python ");
+      strcat(pin->command_PBH_spike,__CLASSDIR__);
+      strcat(pin->command_PBH_spike,"/external/heating/interpolate_DM_spike_decay_rate.py 100 ");
+      sprintf(string2,"");
+      // double omega_cdm = ;
+      sprintf(string2,"%g %g %g %g %g %g",pin->PBH_spike_mass,pin->PBH_spike_fraction,pin->DM_annihilation_mass,pin->PBH_spike_xkd,pin->DM_annihilation_cross_section,pba->Omega0_cdm*pba->h*pba->h);
+      // strcat(pin->command_fz,string2);
+      // sprintf(string2,"");
+      // sprintf(string2,"%g");
+      strcat(pin->command_PBH_spike,string2);
+      // sprintf(string2,"%g");
+      // strcat(pin->command_fz,string2);
 
 
-    // mbh fbh mchi xkd sigv Oh2DM
+      // mbh fbh mchi xkd sigv Oh2DM
+    }
+
 
     // printf(" -> running: %s\n", pin->command_PBH_spike);
     // FILE *test;
@@ -1364,6 +1367,7 @@ int injection_read_spike_from_file(struct precision* ppr,
        printf(" -> running: %s\n", pin->command_PBH_spike);
      }
      fflush(fA);
+     printf("here\n");
      fA = popen(pin->command_PBH_spike, "r");
      class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
    } else {
