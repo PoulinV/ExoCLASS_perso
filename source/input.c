@@ -3452,6 +3452,33 @@ int input_read_parameters_injection(struct file_content * pfc,
                "Parameter for DM annihilation in halos cannot be negative");
   }
 
+  /*VP: PBH spike energy injection */
+  class_read_double("PBH_spike_mass",pin->PBH_spike_mass);
+  class_read_double("PBH_spike_xkd",pin->PBH_spike_xkd);
+  class_read_double("PBH_spike_fraction",pin->PBH_spike_fraction);
+  // printf("pin->PBH_spike_fraction %e\n", pin->PBH_spike_fraction);
+  class_call(parser_read_string(pfc,"PBH_spike_type",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  /* Complete set of parameters */
+  if (flag1 == _TRUE_){
+    if (strcmp(string1,"JulienScript") == 0){
+      pin->PBH_spike_type = JulienScript;
+    }
+    else if (strcmp(string1,"from_file") == 0){
+      pin->PBH_spike_type = PBH_spike_from_file;
+      /* Read */
+      class_call(parser_read_string(pfc,"PBH_spike_file",&string1,&flag1,errmsg),
+                 errmsg,
+                 errmsg);
+      /* Test */
+      class_test(flag1 == _FALSE_,
+                 errmsg,
+                 "for the option 'from_file' for 'PBH_spike_type' the option 'PBH_spike_file' is required.");
+      /* Complete set of parameters */
+      strcpy(pin->PBH_spike_file, string1);
+    }
+  }
   /** 2) DM decay */
   /** 2.a) Fraction */
   /* Read */
@@ -3845,12 +3872,12 @@ int input_read_parameters_injection(struct file_content * pfc,
   }
 
   /** 7) DarkHistory inputs */
-  class_call(parser_read_string(pfc, 
-                                "DH file name", 
-                                &(string1), 
-                                &(flag1), 
-                                errmsg), 
-             errmsg, 
+  class_call(parser_read_string(pfc,
+                                "DH file name",
+                                &(string1),
+                                &(flag1),
+                                errmsg),
+             errmsg,
              errmsg);
   strcpy(pth->DH_file_name, string1);
 
@@ -6080,6 +6107,13 @@ int input_default_params(struct background *pba,
   pin->DM_annihilation_zmin = 30.;
   pin->DM_annihilation_f_halo = 0.;
   pin->DM_annihilation_z_halo = 30.;
+
+  pin->PBH_spike_mass = 1;
+  pin->PBH_spike_xkd = 100;
+  pin->PBH_spike_fraction = 0;
+  pin->PBH_spike_type = PBH_spike_from_file;
+  class_sprintf(pin->PBH_spike_file,"external/heating/example_PBH_spike_file.dat");
+
 
   /** 2) DM decay */
   /** 2.a) Fraction */

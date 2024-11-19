@@ -2392,6 +2392,7 @@ int background_find_equality(
 
   pba->a_eq = pvecback[pba->index_bg_a];
   pba->H_eq = pvecback[pba->index_bg_H];
+  pba->t_eq = pvecback[pba->index_bg_time];
   pba->z_eq = 1./pba->a_eq -1.;
   pba->tau_eq = tau_mid;
 

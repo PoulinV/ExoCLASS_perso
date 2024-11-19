@@ -149,6 +149,7 @@ struct background
   double H_eq;      /**< Hubble rate at radiation/matter equality [Mpc^-1] */
   double z_eq;      /**< redshift at radiation/matter equality */
   double tau_eq;    /**< conformal time at radiation/matter equality [Mpc] */
+  double t_eq;    /**< time at radiation/matter equality [s] */
 
   //@}
 

@@ -26,6 +26,8 @@ int injection_init(struct precision * ppr,
   /** - Define local variable */
   struct injection* pin = &(pth->in);
   int index_inj, index_dep;
+  char string2[_ARGUMENT_LENGTH_MAX_];
+  string2[0]='\0';
 
   /** - Initialize flags, indices and parameters */
   pin->has_DM_ann = _FALSE_;
@@ -49,7 +51,7 @@ int injection_init(struct precision * ppr,
   pin->Omega0_b = pba->Omega0_b;                                                                    // [-]
   pin->Omega0_cdm = pba->Omega0_cdm;                                                                // [-]
   pin->rho0_cdm = pba->Omega0_cdm*pow(pin->H0,2)*3/8./_PI_/_G_*_c_*_c_;                             // [J/m^3]
-
+  pin->t_eq = pba->t_eq;
   /* Thermodynamics structure */
   pin->fHe = pth->fHe;                                                                              // [-]
   pin->N_e0 = pth->n_e;                                                                             // [1/m^3]
@@ -96,7 +98,38 @@ int injection_init(struct precision * ppr,
                pin->error_message,
                pin->error_message);
   }
+  if(pin->PBH_spike_fraction > 0.){
+    sprintf(pin->command_PBH_spike,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
+    strcat(pin->command_PBH_spike, "python ");
+    strcat(pin->command_PBH_spike,__CLASSDIR__);
+    strcat(pin->command_PBH_spike,"/External/heating/interpolate_DM_spike_decay_rate.py 100 ");
+    sprintf(string2,"");
+    // double omega_cdm = ;
+    sprintf(string2,"%g %g %g %g %g %g",pin->PBH_spike_mass,pin->PBH_spike_fraction,pin->DM_annihilation_mass,pin->PBH_spike_xkd,pin->DM_annihilation_cross_section,pba->Omega0_cdm*pba->h*pba->h);
+    // strcat(pin->command_fz,string2);
+    // sprintf(string2,"");
+    // sprintf(string2,"%g");
+    strcat(pin->command_PBH_spike,string2);
+    // sprintf(string2,"%g");
+    // strcat(pin->command_fz,string2);
 
+
+    // mbh fbh mchi xkd sigv Oh2DM
+
+    // printf(" -> running: %s\n", pin->command_PBH_spike);
+    // FILE *test;
+    // test = popen(pin->command_PBH_spike, "r");
+    /** - Define local variables */
+    // FILE * fA = NULL;
+    //  fflush(fA);
+    //  fA = popen(pin->command_PBH_spike, "r");
+    //  class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
+
+    class_call(injection_read_spike_from_file(ppr,pin,
+                                             pin->PBH_spike_file),
+               pin->error_message,
+               pin->error_message);
+  }
   /** - Initialize injection efficiency */
   /* Read from external file, if needed */
   if(pin->f_eff_type == f_eff_from_file){
@@ -238,6 +271,11 @@ int injection_free(struct thermodynamics* pth){
     free(pin->PBH_table_mass_dd);
     free(pin->PBH_table_F);
     free(pin->PBH_table_F_dd);
+  }
+  if(pin->PBH_spike_fraction > 0){
+    if(pin->PBH_spike_type ==PBH_spike_from_file){
+      free(pin->PBH_spike_table);
+    }
   }
 
   /* Injection efficiency */
@@ -692,7 +730,25 @@ int injection_deposition_function_at_z(struct injection* pin,
   return _SUCCESS_;
 }
 
+int PBH_spike_at_t(struct injection* pin,
+                    double t,
+                    double * Gamma_spike_at_t){
+   class_call(array_interpolate_spline_transposed(pin->PBH_spike_table,
+                                                  pin->PBH_spike_z_size,
+                                                  3,
+                                                  0,
+                                                  1,
+                                                  2,
+                                                  t,
+                                                  &(pin->last_index_z_PBH_spike),
+                                                  Gamma_spike_at_t,
+                                                  pin->error_message),
+              pin->error_message,
+              pin->error_message);
 
+    return _SUCCESS_;
+
+}
 /**
  * Interpolates deposition from precomputed table at a given value of z.
  *
@@ -744,10 +800,9 @@ int injection_deposition_at_z(struct thermodynamics* pth,
 int injection_rate_DM_annihilation(struct injection * pin,
                                    double z,
                                    double * energy_rate){
-
   /** - Define local variables */
   double annihilation_at_z, boost_factor;
-
+  double PBH_spike_injection, Gamma_at_t, DM_smooth;
   /** - Calculate change in the annihilation efficiency */
   if (z>pin->DM_annihilation_zmax) {
     annihilation_at_z = pin->DM_annihilation_efficiency*
@@ -765,8 +820,19 @@ int injection_rate_DM_annihilation(struct injection * pin,
   }
 
   /** - Calculate boost factor due to annihilation in halos */
-  if(pin->DM_annihilation_z_halo > 0.){
-    boost_factor = pin->DM_annihilation_f_halo * erfc((1+z)/(1+pin->DM_annihilation_z_halo)) / pow(1.+z,3);
+  if(pin->DM_annihilation_f_halo > 0.){
+    boost_factor = pin->DM_annihilation_f_halo*erfc((1+z)/(1+pin->DM_annihilation_z_halo)) / pow(1.+z,3);
+  }else if(pin->PBH_spike_fraction > 0.){
+    if(pin->t-pin->t_eq>0){
+      PBH_spike_at_t(pin,log10(pin->t-pin->t_eq),&Gamma_at_t);
+      PBH_spike_injection = 2*(pin->DM_annihilation_mass*_eV_*1.e9/_c_/_c_)*pin->PBH_spike_fraction*pin->rho_cdm/(pin->PBH_spike_mass*_Sun_mass_)*pow(10,Gamma_at_t);
+    }else{
+      PBH_spike_injection = 0;
+    }
+    // printf("PBH_spike_mass %e\n",pin->PBH_spike_mass);
+    DM_smooth = pow(pin->rho_cdm,2.)*annihilation_at_z;
+    boost_factor = pow(1-pin->PBH_spike_fraction,2)+PBH_spike_injection/DM_smooth-1;
+  // if(log10(z)>0)printf("%e  %e\n",log10(z),log10(PBH_spike_injection/DM_smooth));
   }
   else{
     boost_factor = 0;
@@ -1265,6 +1331,105 @@ int injection_read_feff_from_file(struct precision* ppr,
 
   return _SUCCESS_;
 }
+
+
+/**
+ * Read and interpolate the deposition function from external file.
+ *
+ * @param ppr   Input: pointer to precision structure
+ * @param pin   Input/Output: pointer to injection structure
+ * @return the error status
+ */
+int injection_read_spike_from_file(struct precision* ppr,
+                                  struct injection* pin,
+                                  char* PBH_spike_file){
+
+  /** - Define local variables */
+  FILE * fA = NULL;
+  char line[_LINE_LENGTH_MAX_];
+  char * left;
+  int headlines = 0;
+  int index_z;
+
+  pin->PBH_spike_z_size = 0;
+  /** - Read file header */
+  /* The file is assumed to contain:
+   *    - The number of lines of the file
+   *    - The columns ( z, f(z) ) where f(z) represents the "effective" fraction of energy deposited
+   *      into the medium  at redshift z, in presence of halo formation. */
+
+
+   if (pin->PBH_spike_type==JulienScript) {
+     if (pin->injection_verbose > 0) {
+       printf(" -> running: %s\n", pin->command_PBH_spike);
+     }
+     fflush(fA);
+     fA = popen(pin->command_PBH_spike, "r");
+     class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
+   } else {
+     class_open(fA, PBH_spike_file, "r", pin->error_message);
+   }
+
+  while (fgets(line,_LINE_LENGTH_MAX_-1,fA) != NULL) {
+    headlines++;
+
+    /* Eliminate blank spaces at beginning of line */
+    left=line;
+    while (left[0]==' ') {
+      left++;
+    }
+
+    /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
+       be the beginning of some data (it is not a newline, a #, a %, etc.) */
+    if (left[0] > 39) {
+
+      /* If the line contains data, we must interprete it. If num_lines == 0 , the current line must contain
+         its value. Otherwise, it must contain (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE). */
+
+      /* Read num_lines, infer size of arrays and allocate them */
+      class_test(sscanf(line,"%d",&(pin->PBH_spike_z_size)) != 1,
+                 pin->error_message,
+                 "could not read the initial integer of number of lines in line %i in file '%s' \n",
+                 headlines,PBH_spike_file);
+
+      /* (z, spike, ddspike)*/
+      class_alloc(pin->PBH_spike_table,
+                  3*pin->PBH_spike_z_size*sizeof(double),
+                  pin->error_message);
+      break;
+    }
+  }
+
+  /** - Read file */
+  for(index_z=0;index_z<pin->PBH_spike_z_size;++index_z){
+    /* Read coefficients */
+    class_test(fscanf(fA,"%lg %lg",
+                      &(pin->PBH_spike_table[index_z*3+0]),  // z
+                      &(pin->PBH_spike_table[index_z*3+1])   // f_eff(z)
+                     ) != 2,
+               pin->error_message,
+               "could not read value of parameters coefficients in line %i in file '%s'\n",
+               headlines,PBH_spike_file);
+  }
+
+  fclose(fA);
+
+  /** - Spline file contents */
+  /* Spline in one dimension */
+  class_call(array_spline(pin->PBH_spike_table,
+                          3,
+                          pin->PBH_spike_z_size,
+                          0,
+                          1,
+                          2,
+                          _SPLINE_NATURAL_,
+                          pin->error_message),
+             pin->error_message,
+             pin->error_message);
+
+  return _SUCCESS_;
+}
+
 
 
 /**

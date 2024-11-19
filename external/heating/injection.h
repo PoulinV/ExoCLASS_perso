@@ -8,6 +8,7 @@
  */
 enum PBH_accretion_approx {spherical_accretion, disk_accretion};
 enum f_eff_approx {f_eff_on_the_spot, f_eff_from_file, DarkAges};
+enum PBH_spike_approx {JulienScript, PBH_spike_from_file};
 enum chi_approx {chi_CK, chi_PF, chi_Galli_file, chi_Galli_analytic, chi_full_heating, chi_from_x_file, chi_from_z_file, no_factorization};
 
 struct injection{
@@ -43,9 +44,19 @@ struct injection{
   double PBH_accretion_ADAF_delta;
   double PBH_accretion_eigenvalue;
 
+  double PBH_spike_mass;
+  double PBH_spike_fraction;
+  double PBH_spike_xkd;
   /* Injection efficiency */
   int f_eff_type;
   FileName f_eff_file;
+
+  /* PBH spike */
+  int PBH_spike_type;
+  FileName PBH_spike_file;
+  int PBH_spike_z_size;
+  double* PBH_spike_table;
+  FileName  command_PBH_spike;  /**< string with the command for calling 'external_fz' */
 
   /* Parameters related to calling an external code to calculate f(z) */
   short fz_is_extern; /**< flag to specify if the fz_functions are given in a file or are calculated externally */
@@ -85,6 +96,7 @@ struct injection{
   double H;
   double a;
   double t;
+  double t_eq;
   double rho_g;
   double rho_b;
   double rho_cdm;
@@ -113,6 +125,7 @@ struct injection{
   int filled_until_index_z;
   double filled_until_z;
 
+  int last_index_z_PBH_spike;
   int last_index_z_feff;
   int last_index_z_chi;
   int last_index_z_inj;
@@ -252,6 +265,12 @@ extern "C" {
                                    double z,
                                    double * energy_rate);
 
+ int injection_read_spike_from_file(struct precision* ppr,
+                                   struct injection* phe,
+                                   char* PBH_spike_file);
+ int PBH_spike_at_t(struct injection* pin,
+                     double t,
+                     double * Gamma_spike_at_t);
   /* Injection efficiency */
   int injection_read_feff_from_file(struct precision* ppr,
                                      struct injection* phe,
