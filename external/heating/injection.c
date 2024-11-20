@@ -1367,7 +1367,6 @@ int injection_read_spike_from_file(struct precision* ppr,
        printf(" -> running: %s\n", pin->command_PBH_spike);
      }
      fflush(fA);
-     printf("here\n");
      fA = popen(pin->command_PBH_spike, "r");
      class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
    } else {
