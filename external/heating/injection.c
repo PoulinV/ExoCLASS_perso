@@ -105,29 +105,11 @@ int injection_init(struct precision * ppr,
       strcat(pin->command_PBH_spike,__CLASSDIR__);
       strcat(pin->command_PBH_spike,"/external/heating/interpolate_DM_spike_decay_rate.py 100 ");
       sprintf(string2,"");
-      // double omega_cdm = ;
-      sprintf(string2,"%g %g %g %g %g %g",pin->PBH_spike_mass,pin->PBH_spike_fraction,pin->DM_annihilation_mass,pin->PBH_spike_xkd,pin->DM_annihilation_cross_section,pba->Omega0_cdm*pba->h*pba->h);
-      // strcat(pin->command_fz,string2);
-      // sprintf(string2,"");
-      // sprintf(string2,"%g");
-      strcat(pin->command_PBH_spike,string2);
-      // sprintf(string2,"%g");
-      // strcat(pin->command_fz,string2);
-
-
       // mbh fbh mchi xkd sigv Oh2DM
+      sprintf(string2,"%g %g %g %g %g %g",pin->PBH_spike_mass,pin->PBH_spike_fraction,pin->DM_annihilation_mass,pin->PBH_spike_xkd,pin->DM_annihilation_cross_section,pba->Omega0_cdm*pba->h*pba->h);
+      strcat(pin->command_PBH_spike,string2);
     }
-
-
-    // printf(" -> running: %s\n", pin->command_PBH_spike);
-    // FILE *test;
-    // test = popen(pin->command_PBH_spike, "r");
-    /** - Define local variables */
-    // FILE * fA = NULL;
-    //  fflush(fA);
-    //  fA = popen(pin->command_PBH_spike, "r");
-    //  class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
-
+    //we call this function even if PBH_spike_type == JulienScript. The call to the script is done within the function.
     class_call(injection_read_spike_from_file(ppr,pin,
                                              pin->PBH_spike_file),
                pin->error_message,
@@ -276,9 +258,9 @@ int injection_free(struct thermodynamics* pth){
     free(pin->PBH_table_F_dd);
   }
   if(pin->PBH_spike_fraction > 0){
-    if(pin->PBH_spike_type ==PBH_spike_from_file){
+    // if(pin->PBH_spike_type ==PBH_spike_from_file){
       free(pin->PBH_spike_table);
-    }
+    // }
   }
 
   /* Injection efficiency */
@@ -835,7 +817,10 @@ int injection_rate_DM_annihilation(struct injection * pin,
     // printf("PBH_spike_mass %e\n",pin->PBH_spike_mass);
     DM_smooth = pow(pin->rho_cdm,2.)*annihilation_at_z;
     boost_factor = pow(1-pin->PBH_spike_fraction,2)+PBH_spike_injection/DM_smooth-1;
-  // if(log10(z)>0)printf("%e  %e\n",log10(z),log10(PBH_spike_injection/DM_smooth));
+    // printf("pin->t_eq  %e \n",pin->t_eq);
+  // if(pin->t-pin->t_eq>0)printf("%e  %e %e %e %e\n",z,pin->t-pin->t_eq,Gamma_at_t,log10(PBH_spike_injection/_eV_/1e9/1e6),log10(PBH_spike_injection/DM_smooth));
+  // printf("pin->DM_annihilation_mass %e pan %e annihilation_at_z %e\n", pin->DM_annihilation_mass,pin->DM_annihilation_efficiency,annihilation_at_z);
+  // if(pin->t-pin->t_eq>0 && z>0)printf("%e  %e %e\n",log10(z),log10(PBH_spike_injection/DM_smooth),log10(DM_smooth/_eV_/1e9/1e6));
   }
   else{
     boost_factor = 0;
