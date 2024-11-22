@@ -812,13 +812,14 @@ int injection_rate_DM_annihilation(struct injection * pin,
       PBH_spike_at_t(pin,log10(pin->t-pin->t_eq),&Gamma_at_t);
       PBH_spike_injection = 2*(pin->DM_annihilation_mass*_eV_*1.e9/_c_/_c_)*pin->PBH_spike_fraction*pin->rho_cdm/(pin->PBH_spike_mass*_Sun_mass_)*pow(10,Gamma_at_t);
     }else{
+      Gamma_at_t = 0;
       PBH_spike_injection = 0;
     }
     // printf("PBH_spike_mass %e\n",pin->PBH_spike_mass);
     DM_smooth = pow(pin->rho_cdm,2.)*annihilation_at_z;
     boost_factor = pow(1-pin->PBH_spike_fraction,2)+PBH_spike_injection/DM_smooth-1;
-    // printf("pin->t_eq  %e \n",pin->t_eq);
-  // if(pin->t-pin->t_eq>0)printf("%e  %e %e %e %e\n",z,pin->t-pin->t_eq,Gamma_at_t,log10(PBH_spike_injection/_eV_/1e9/1e6),log10(PBH_spike_injection/DM_smooth));
+    // printf("pin->t_eq  %e  pin->t %e\n",pin->t_eq,pin->t);
+  if(pin->t-pin->t_eq>0 && pin->injection_verbose == -1 && log10(z)>0)printf("%e  %e %e %e %e\n",log10(z),log10(pin->t-pin->t_eq),Gamma_at_t,log10(PBH_spike_injection/_eV_/1e9/1e6),log10(PBH_spike_injection/DM_smooth));
   // printf("pin->DM_annihilation_mass %e pan %e annihilation_at_z %e\n", pin->DM_annihilation_mass,pin->DM_annihilation_efficiency,annihilation_at_z);
   // if(pin->t-pin->t_eq>0 && z>0)printf("%e  %e %e\n",log10(z),log10(PBH_spike_injection/DM_smooth),log10(DM_smooth/_eV_/1e9/1e6));
   }

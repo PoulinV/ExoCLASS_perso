@@ -209,7 +209,7 @@ nbflines = int(nbflines)
 #print(nbflines,mbh,fbh,mchi,xkd,sigv,oDM)
 
 ## log10(time/second)
-L10_TIME = np.linspace(0.,17.,nbflines)
+L10_TIME = np.linspace(0.,19.,nbflines)
 L10_GAMMA_BH = np.zeros(nbflines)
 
 for i in range(int(nbflines)):
