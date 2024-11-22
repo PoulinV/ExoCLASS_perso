@@ -815,6 +815,7 @@ int injection_rate_DM_annihilation(struct injection * pin,
       Gamma_at_t = 0;
       PBH_spike_injection = 0;
     }
+    PBH_spike_injection = (tanh((pin->t-1.1*pin->t_eq)/10)+1)/2*2*(pin->DM_annihilation_mass*_eV_*1.e9/_c_/_c_)*pin->PBH_spike_fraction*pin->rho_cdm/(pin->PBH_spike_mass*_Sun_mass_)*pow(10,Gamma_at_t);
     // printf("PBH_spike_mass %e\n",pin->PBH_spike_mass);
     DM_smooth = pow(pin->rho_cdm,2.)*annihilation_at_z;
     boost_factor = pow(1-pin->PBH_spike_fraction,2)+PBH_spike_injection/DM_smooth-1;
