@@ -42,6 +42,10 @@ enum reionization_z_or_tau {
                             reio_tau /**< input = tau */
 };
 
+/*VP: two ways of calling DH */
+enum DH_mode {from_file,call_script};
+
+
 /**
  * Two useful smooth step functions, for smoothing transitions in recfast.
  */
@@ -174,12 +178,15 @@ struct thermodynamics
 
   /** DarkHistory quantities */
   char DH_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input
+  FileName  command_DH;  /**< string with the command for calling 'external_fz' */
+
   double* DH_table; // table to store thermodynamics history
   int DH_z_size; // number of lines read into table
   int DH_th_size; // number of thermodynamics quantities. Usually 3 for xe, Tmat, and dTmat
   int index_DH_xe;
   int index_DH_Tmat;
   int index_DH_dTmat;
+  int DH_mode;
 
   /** parameters for varying fundamental constants */
 
