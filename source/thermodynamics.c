@@ -840,6 +840,9 @@ int thermodynamics_workspace_init(
   // Initialize ionisation fraction.
   ptw->ptdw->x_reio = 1.+2.*ptw->fHe;
   ptw->ptdw->x_noreio = 1.+2.*ptw->fHe;
+  //initialize DH table size, will be set to nonzero value if DH is used.
+  pth->DH_th_size = 0;
+
 
   /** - define approximations */
   index_ap=0;
@@ -2946,7 +2949,6 @@ int thermodynamics_sources(
   // For interpolating DarkHistory table
   int last_index; // dummy index
   double * pvecDH;
-  class_alloc(pvecDH,(pth->DH_th_size+1)*sizeof(double),pth->error_message);
 
   /* Redshift */
   z = -mz;
@@ -2963,6 +2965,8 @@ int thermodynamics_sources(
   ptv = ptdw->ptv;
   /* Approximation flag */
   ap_current = ptdw->ap_current;
+
+  class_alloc(pvecDH,(pth->DH_th_size+1)*sizeof(double),pth->error_message);
 
   if (pth->has_exotic_injection == _TRUE_) {
     /* Tell heating module that it should store the heating at this z in its internal table */
@@ -3078,7 +3082,7 @@ int thermodynamics_sources(
   }
 
   // free vector used to interpolate DH table
-  free(pvecDH); 
+  free(pvecDH);
   return _SUCCESS_;
 }
 
@@ -4849,7 +4853,20 @@ int injection_read_DH_from_file(struct thermodynamics * pth){
   pth->DH_th_size = index_DH-1; // subtract one because not including redshift
 
   /** Open file */
-  class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
+  if (pth->DH_mode==call_script) {
+    if (pth->thermodynamics_verbose > 0) {
+      printf(" -> running: %s\n", pth->command_DH);
+    }
+    fflush(DH_input);
+    //DH_input = popen(pin->command_fz, "r"); //currently not working
+    class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
+
+    class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
+  } else {
+    class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
+  }
+
+
   while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
       headlines++;
 
