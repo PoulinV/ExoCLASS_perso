@@ -3384,7 +3384,7 @@ int input_read_parameters_injection(struct file_content * pfc,
   char string1[_ARGUMENT_LENGTH_MAX_],string2[_ARGUMENT_LENGTH_MAX_];
   string1[0]='\0';
   string2[0]='\0';
-
+  double param3;
   /** 1) DM annihilation */
   /** 1.a) Annihilation efficiency */
   /* Read */
@@ -3871,7 +3871,7 @@ int input_read_parameters_injection(struct file_content * pfc,
       sprintf(pth->command_DH,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
       strcat(pth->command_DH, "python ");
       strcat(pth->command_DH,__CLASSDIR__);
-      strcat(pth->command_DH,"/DH_interface/DHoneline.py");
+      strcat(pth->command_DH,"/DH_interface/DarkHistory/DHoneline.py ./DH_interface/ ");
       /* Automatic comand for annihialtion without halo boost*/
       class_call(parser_read_string(pfc,
                                     "DH file name",
@@ -3880,17 +3880,50 @@ int input_read_parameters_injection(struct file_content * pfc,
                                     errmsg),
                  errmsg,
                  errmsg);
-      strcpy(pth->DH_file_name, string1);
+      strcat(pth->command_DH,string1);
 
-  //     if(pin->DM_annihilation_efficiency > 0 && pin->DM_annihilation_f_halo == 0){
+      if(pin->DM_annihilation_efficiency > 0){
+        strcat(pth->command_DH," --DM_process 'swave'");
+        sprintf(string2,"");
+        strcat(pth->command_DH," --primary ");
+        class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
+                   errmsg,
+                   errmsg);
+        strcat(pth->command_DH,string2);
+        class_test(strcmp(string2,"") == 0,errmsg,
+          "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
+          strcat(pth->command_DH," --mDM ");//, help="Dark matter mass in [eV]", type=float)
+          sprintf(string2,"%g",pin->DM_annihilation_mass*1e9);
+          strcat(pth->command_DH,string2);
+          strcat(pth->command_DH," --sigmav ");//", help="Thermally averaged annihilation cross section in [cm^3 / s]", type=float)
+          sprintf(string2,"%g",pin->DM_annihilation_cross_section);
+          strcat(pth->command_DH,string2);
+          strcat(pth->command_DH," --struct_boost "); //help="Structure formation boost factor. Currently implemented models are {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs', 'erfc', 'pwave_NFW_no_subs'}, see phys.struct_boost_func for details.")
+          class_call(parser_read_string(pfc,"struct_boost",&string2,&flag1,errmsg),
+                     errmsg,
+                     errmsg);
+          strcat(pth->command_DH,string2);
+
+      }
+      if(pin->DM_decay_fraction > 0){
+        strcat(pth->command_DH," --DM_process 'decay'");
+        sprintf(string2,"");
+        strcat(pth->command_DH," --primary ");
+        class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
+                   errmsg,
+                   errmsg);
+        strcat(pth->command_DH,string2);
+        class_test(strcmp(string2,"") == 0,errmsg,
+          "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
+          strcat(pth->command_DH," --mDM ");//, help="Dark matter mass in [eV]", type=float)
+          sprintf(string2,"%g",pin->DM_decay_mass*1e9);
+          strcat(pth->command_DH,string2);
+          strcat(pth->command_DH," --lifetime ");//", help="Dark matter lifetime [in s]", type=float)
+          sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
+          strcat(pth->command_DH,string2);
+      }
+
   //       strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=annihilation --spectrum ");
-  //       sprintf(string2,"");
-  //       class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
-  //                  errmsg,
-  //                  errmsg);
-  //       strcat(pin->command_fz,string2);
-  //       class_test(strcmp(string2,"") == 0,errmsg,
-  //         "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
   //       strcat(pin->command_fz," --branching ");
   //       sprintf(string2,"");
   //       class_call(parser_read_string(pfc,"injected_particle_branching_ratio",&string2,&flag1,errmsg),
@@ -3907,75 +3940,297 @@ int input_read_parameters_injection(struct file_content * pfc,
   //
   //
 
-    // # Save settings
-    // parser.add_argument("save_dir", help="directory where outputs are saved to")
-    // parser.add_argument("file_name_str", help="identifier appended to output file names")
-    // parser.add_argument("--save_DH", help="if set, saves output of DarkHistory", type=bool, default=False) #action='store_true')
+    // // # Save settings
+    // strcat(pth->command_DH,"save_dir "); //help="directory where outputs are saved to")
+    // strcat(pth->command_DH,"file_name_str "); //help="identifier appended to output file names")
+    // strcat(pth->command_DH,"--save_DH "); //help="if set, saves output of DarkHistory", type=bool, default=False) #action='store_true')
 
-    // # Specify injections from decays/annihilations with monochromatic injection spectra
-    // parser.add_argument("--DM_process", help="specifies decays or annihilations. Should be one of {'decay', 'swave', 'pwave'}")
-    // parser.add_argument("--primary", help="Primary channel of annihilation/decay. See :func:`.get_pppc_spec`for complete list. Use 'elec_delta' or 'phot_delta' for delta function injections of a pair of photons/an electron-positron pair.")
-    // parser.add_argument("--mDM", help="Dark matter mass in [eV]", type=float)
-    // parser.add_argument("--sigmav", help="Thermally averaged annihilation cross section in [cm^3 / s]", type=float)
-    // parser.add_argument("--lifetime", help="Decay lifetime in [s]", type=float)
-    //
+
     // # # More general options for injection spectra and rate functions. Not yet implemented
-    // # parser.add_argument("--in_spec_elec", help="injected spectrum of electrons", type=)
-    // # parser.add_argument("--in_spec_phot", help="injected spectrum of photons", type=)
-    // # parser.add_argument("--rate_func_N", help="number of injections per volume per time in units of [cm^-3 s^-1]", type=)
-    // # parser.add_argument("--rate_func_eng", help="energy injected per volume per time in units of [eV cm^-3 s^-1]", type=)
+    // # strcat(pth->command_DH,"--in_spec_elec "); //help="injected spectrum of electrons", type=)
+    // # strcat(pth->command_DH,"--in_spec_phot "); //help="injected spectrum of photons", type=)
+    // # strcat(pth->command_DH,"--rate_func_N "); //help="number of injections per volume per time in units of [cm^-3 s^-1]", type=)
+    // # strcat(pth->command_DH,"--rate_func_eng "); //help="energy injected per volume per time in units of [eV cm^-3 s^-1]", type=)
     //
     // # Key redshifts
-    // parser.add_argument("--start_rs", help="Starting redshift for evolution. Default is 3000.", type=float, default=3000)
-    // parser.add_argument("--high_rs", help="Threshold redshift for dealing with stiff ODE", type=float, default=np.inf)
-    // parser.add_argument("--end_rs", help="Final redshift to evolve to. Default is 4.", type=float, default=4)
-    //
-    // # Cosmology choices
-    // parser.add_argument("--struct_boost", help="Structure formation boost factor. Currently implemented models are {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs', 'erfc', 'pwave_NFW_no_subs'}, see phys.struct_boost_func for details.")
-    // parser.add_argument("--helium_TLA", help="If True, the TLA is solved with helium. Default is False.", type=bool, default=False) #action='store_true')
-    //
-    // # Reionization
-    // parser.add_argument("--reion_switch", help="Reionization model included if True, default is False", type=bool, default=False) #action='store_true')
-    // parser.add_argument("--reion_rs", help="Redshift at which reionization effects turn on", type=float)
-    // parser.add_argument("--reion_method", help="Reionization model, options are {'Puchwein', 'early', 'middle', 'late'}", default='Puchwein')
-    // parser.add_argument("--heat_switch", help="If True, includes photoheating during reionization.", type=bool, default=False) #ction='store_true')
-    // # parser.add_argument("--photoion_rate_func", help="", type=)
-    // # parser.add_argument("--photoheat_rate_func", help="", type=)
-    // # parser.add_argument("--xe_reion_func", help="", type=)
-    // parser.add_argument("--DeltaT", help="For fixed reionization models, constant of proportionality for photoheating. See arXiv:2008.01084.", type=float)
-    // parser.add_argument("--alpha_bk", help="Post-reionization heating power law. See arXiv:2008.01084.", type=float)
-    //
-    // # Energy deposition calculation
-    // parser.add_argument("--compute_fs_method", help="Method for evaluating helium ionization, should be one of {'no_He', 'He_recomb', 'He', 'HeII'}. See DarkHistory function main for details.", default='no_He')
-    // parser.add_argument("--elec_method", help="Method for evaluation electron energy deposition. Should be one of {'new', 'old', 'eff'}. See DarkHistory function main for details.", default='new')
-    //
-    // # Atomic physics and spectral distortions
-    // parser.add_argument("--distort", help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
-    // parser.add_argument("--fudge", help="Value of Recfast fudge factor. Default is 1.125.", type=float, default=1.125)
-    // parser.add_argument("--nmax", help="If distort is True, sets the maximum H principal quantum number that the MLA tracks. Default is 10.", type=int, default=10)
-    // parser.add_argument("--fexc_switch", help="If True, include the source term b_DM to the MLA steady-state equation. Default is True.", type=bool, default='True')
-    // parser.add_argument("--reprocess_distortion", help="If True, set Delta_f != 0, accounting for distortion photons from earlier redshifts to be absorbed or stimulate emission, i.e. be reprocessed. Default is True.", type=bool, default='True')
-    // parser.add_argument("--simple_2s1s", help="If set, fixes the decay rate to 8.22 s^-1.", type=bool, default=False) #action='store_true')
-    // parser.add_argument("--iterations", help="Number of iterations to run for the MLA iterative method.", type=int, default=1)
-    //
-    //
-    // # Initial conditions, precision options, misc.
-    // # parser.add_argument("--init_cond", help="Specifies the initial (xH, xHe, Tm).", type=)
-    // parser.add_argument("--coarsen_factor", help="Coarsening to apply to the transfer function matrix. Default is 1.", type=int, default=1)
-    // parser.add_argument("--backreaction", help="If False, uses the baseline TLA solution to calculate. Default is True.", type=bool, default=True)
-    // parser.add_argument("--mxstep", help="The maximum number of steps allowed for each integration point. Default is 1000.", type=int, default=1000)
-    // parser.add_argument("--rtol", help="The relative error of the solution. Default is 1e-4.", type=float, default=1e-4)
-    // parser.add_argument("--use_tqdm", help="If True, uses tqdm to track progress.", type=bool, default=False) #action='store_true')
-    // parser.add_argument("--tqdm_jupyter", help="Uses tqdm in Jupyter notebooks if True. Otherwise, uses tqdm for terminals. Default is False.", type=bool, default=False) #action='store_true')
-    //
-    //
+    class_call(parser_read_double(pfc,"start_rs",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --start_rs "); //help="Starting redshift for evolution. Default is 3000.", type=float, default=3000)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"high_rs",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --high_rs "); //help="Starting redshift for evolution. Default is 3000.", type=float, default=3000)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"end_rs",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --end_rs "); //help="Starting redshift for evolution. Default is 3000.", type=float, default=3000)
+      strcat(pth->command_DH,string2);
+    }
 
 
+    class_call(parser_read_string(pfc,"backreaction",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --backreaction True"); //help="If False, uses the baseline TLA solution to calculate. Default is True.", type=bool, default=True)
+      }
+      else {
+        strcat(pth->command_DH," --backreaction False");
+      }
+    }
 
+    class_call(parser_read_string(pfc,"helium_TLA",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --helium_TLA True"); //help="If False, uses the baseline TLA solution to calculate. Default is True.", type=bool, default=True)
+      }
+      else {
+        strcat(pth->command_DH," --helium_TLA False");
+      }
+    }
+    // // # Reionization
 
+    class_call(parser_read_string(pfc,"reion_switch",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --reion_switch True"); //help="Reionization model included if True, default is False", type=bool, default=False) #action='store_true')
+      }
+      else {
+        strcat(pth->command_DH," --reion_switch False");
+    }
   }
 
+    class_call(parser_read_string(pfc,"heat_switch",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --heat_switch True");  //help="If True, includes photoheating during reionization.", type=bool, default=False) #ction='store_true')
+      }
+      else {
+        strcat(pth->command_DH," --heat_switch False");
+      }
+    }
+
+    class_call(parser_read_double(pfc,"reion_rs",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --reion_rs "); //help="Redshift at which reionization effects turn on", type=float)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"reion_method",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --reion_method "); //help="Reionization model, options are {'Puchwein', 'early', 'middle', 'late'}", default='Puchwein')
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"DeltaT",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --DeltaT "); //help="For fixed reionization models, constant of proportionality for photoheating. See arXiv:2008.01084.", type=float)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"alpha_bk",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --alpha_bk "); //help="Post-reionization heating power law. See arXiv:2008.01084.", type=float)
+      strcat(pth->command_DH,string2);
+    }
+
+
+
+
+    // // # Atomic physics and spectral distortions
+
+    class_call(parser_read_double(pfc,"nmax",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --nmax "); //help="If distort is True, sets the maximum H principal quantum number that the MLA tracks. Default is 10.", type=int, default=10)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"iterations",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --iterations "); //help="Number of iterations to run for the MLA iterative method.", type=int, default=1)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"coarsen_factor",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --coarsen_factor "); //help="Coarsening to apply to the transfer function matrix. Default is 1.", type=int, default=1)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"init_cond",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --init_cond "); //help="Specifies the initial (xH, xHe, Tm).
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"mxstep",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --mxstep "); //help="The maximum number of steps allowed for each integration point. Default is 1000.", type=int, default=1000)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"rtol",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --rtol "); //help="The relative error of the solution. Default is 1e-4.", type=float, default=1e-4)
+      strcat(pth->command_DH,string2);
+    }
+
+    class_call(parser_read_string(pfc,"use_tqdm",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --use_tqdm True");  //help="If True, uses tqdm to track progress.", type=bool, default=False) #action='store_true')
+      }
+      else {
+        strcat(pth->command_DH," --use_tqdm False");
+      }
+    }
+
+    //
+    // // # Energy deposition calculation
+    class_call(parser_read_string(pfc,"compute_fs_method",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+    strcat(pth->command_DH," --compute_fs_method "); //help="Method for evaluating helium ionization, should be one of {'no_He', 'He_recomb', 'He', 'HeII'}. See DarkHistory function main for details.", default='no_He')
+    strcat(pth->command_DH,string2);
   }
+  class_call(parser_read_string(pfc,"elec_method",&string2,&flag1,errmsg),
+             errmsg,
+             errmsg);
+    if (flag1 == _TRUE_){
+    strcat(pth->command_DH," --elec_method ");  //help="Method for evaluation electron energy deposition. Should be one of {'new', 'old', 'eff'}. See DarkHistory function main for details.", default='new')
+
+    strcat(pth->command_DH,string2);
+  }
+    // strcat(pth->command_DH,"--compute_fs_method ");
+    // strcat(pth->command_DH,"--elec_method "); //help="Method for evaluation electron energy deposition. Should be one of {'new', 'old', 'eff'}. See DarkHistory function main for details.", default='new')
+    //
+    // // # Atomic physics and spectral distortions
+    class_call(parser_read_string(pfc,"distort",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+      }
+      else {
+        strcat(pth->command_DH," --distort False");
+      }
+    }
+    class_call(parser_read_string(pfc,"fexc_switch",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --fexc_switch True"); //help="If True, include the source term b_DM to the MLA steady-state equation. Default is True.", type=bool, default='True')
+      }
+      else {
+        strcat(pth->command_DH," --fexc_switch False");
+      }
+    }
+    class_call(parser_read_string(pfc,"reprocess_distortion",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --reprocess_distortion True");  //help="If True, set Delta_f != 0, accounting for distortion photons from earlier redshifts to be absorbed or stimulate emission, i.e. be reprocessed. Default is True.", type=bool, default='True')
+      }
+      else {
+        strcat(pth->command_DH," --reprocess_distortion False");
+      }
+    }
+    class_call(parser_read_string(pfc,"simple_2s1s",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --simple_2s1s True");  //help="If set, fixes the decay rate to 8.22 s^-1.", type=bool, default=False) #action='store_true')
+      }
+      else {
+        strcat(pth->command_DH," --simple_2s1s False");
+      }
+    }
+
+    class_call(parser_read_double(pfc,"fudge",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --fudge ");//help="Value of Recfast fudge factor. Default is 1.125.", type=float, default=1.125)
+      strcat(pth->command_DH,string2);
+    }
+    class_call(parser_read_double(pfc,"DH_verbose",&param3,&flag3,errmsg),
+               errmsg,
+               errmsg);
+    if(flag3 == _TRUE_){
+      sprintf(string2,"%g",param3);
+      strcat(pth->command_DH," --verbose ");//help="Do we need some verbose? default is none", type=int, default=False)
+      strcat(pth->command_DH,string2);
+    }
+
+
+
+    // strcat(pth->command_DH,"--tqdm_jupyter "); //help="Uses tqdm in Jupyter notebooks if True. Otherwise, uses tqdm for terminals. Default is False.", type=bool, default=False) #action='store_true')
+    // // # Cosmology choices
+    //
+    // // # strcat(pth->command_DH,"--photoion_rate_func "); //help="", type=)
+    // // # strcat(pth->command_DH,"--photoheat_rate_func "); //help="", type=)
+    // // # strcat(pth->command_DH,"--xe_reion_func "); //help="", type=)
+
+
+
+
+
+  }else{
+  class_stop(errmsg,
+             "DarkHistory_mode not correctly set, it has to be one of {'read_from_file','call_script'}.",string1);
+  }
+}else{
+  class_stop(errmsg,
+             "You forgot to specify DarkHistory_mode, it has to be one of {'read_from_file','call_script'}.",string1);
+}
 }
   return _SUCCESS_;
 }
