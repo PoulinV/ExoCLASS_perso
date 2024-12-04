@@ -4836,7 +4836,7 @@ int thermodynamics_idm_initial_temperature(
  */
 int injection_read_DH_from_file(struct thermodynamics * pth){
   /** - Define local variables */
-  FILE *DH_input;
+  FILE *DH_input = NULL;
   char line[_LINE_LENGTH_MAX_];
   char * left;
   int numentries, ncols, nxe, nTb, headlines, index_DH, index_z, index_thermo;
@@ -4858,9 +4858,8 @@ int injection_read_DH_from_file(struct thermodynamics * pth){
       printf(" -> running: %s\n", pth->command_DH);
     }
     fflush(DH_input);
-    //DH_input = popen(pin->command_fz, "r"); //currently not working
-    class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
-
+    DH_input = popen(pth->command_DH, "r"); //currently not working
+    // class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
     class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
   } else {
     class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
