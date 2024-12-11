@@ -67,6 +67,7 @@ parser.add_argument("--mxstep", help="The maximum number of steps allowed for ea
 parser.add_argument("--rtol", help="The relative error of the solution. Default is 1e-4.", type=float, default=1e-4)
 parser.add_argument("--use_tqdm", help="If True, uses tqdm to track progress.", type=bool, default=False) #action='store_true')
 parser.add_argument("--tqdm_jupyter", help="Uses tqdm in Jupyter notebooks if True. Otherwise, uses tqdm for terminals. Default is False.", type=bool, default=False) #action='store_true')
+parser.add_argument("--verbose", help="Do we need some verbose? default is none", type=int, default=False) #action='store_true')
 
 # # These do not be specified from CLASS, just internal for DarkHistory
 # parser.add_argument("--cross_check", help="", type=)
