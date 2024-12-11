@@ -5833,6 +5833,22 @@ int input_read_parameters_distortions(struct file_content * pfc,
     }
   }
 
+  class_call(parser_read_string(pfc,"output_sd_at_highz",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+
+  if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+
+      psd->output_sd_at_highz = _TRUE_;
+      class_read_double("z_output_sd", psd->z_output_sd);
+
+
+  }else{
+    psd->output_sd_at_highz = _FALSE_;
+    psd->z_output_sd = 0;
+  }
+
+
   return _SUCCESS_;
 
 }

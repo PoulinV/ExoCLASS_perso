@@ -81,6 +81,11 @@ int distortions_init(struct precision * ppr,
              psd->error_message,
              psd->error_message);
 
+  if(psd->output_sd_at_highz == _TRUE_){
+    class_call(output_distortions_at_highz(psd),
+               psd->error_message,
+               psd->error_message);
+  }
   return _SUCCESS_;
 }
 
@@ -542,7 +547,6 @@ int distortions_get_xz_lists(struct precision * ppr,
 
   /** Define local variables */
   int index_z, index_x;
-
   /** Define and allocate z array */
   psd->z_min = ppr->sd_z_min;
   psd->z_max = ppr->sd_z_max;
@@ -817,47 +821,53 @@ int distortions_compute_heating_rate(struct precision* ppr,
   /* Loop over z and calculate the heating at each point */
   for (index_z=0; index_z<psd->z_size; ++index_z){
 
-    /** Import quantities from background structure */
-    class_call(background_tau_of_z(pba,
-                                   psd->z[index_z],
-                                   &tau),
-               pba->error_message,
-               psd->error_message);
-    class_call(background_at_tau(pba,
-                                 tau,
-                                 long_info,
-                                 inter_closeby,
-                                 &last_index_back,
-                                 pvecback),
-               pba->error_message,
-               psd->error_message);
-    H = pvecback[pba->index_bg_H]*_c_/_Mpc_over_m_;               // [1/s]
-    a = pvecback[pba->index_bg_a];                                // [-]
-    rho_g = pvecback[pba->index_bg_rho_g]*_Jm3_over_Mpc2_;        // [J/m^3]
-
-    heat = 0;
-
-    /** Import heat from non-injection structure */
-    if (psd->include_only_exotic == _FALSE_) {
-      class_call(noninjection_photon_heating_at_z(pni,
-                                                  psd->z[index_z],
-                                                  &heat),           // [J/(m^3 s)]
-                 pni->error_message,
+    if(psd->z[index_z] < psd->z_output_sd){
+      //ignore distortions if z < z_min; useful to compute the distortions created by injection up to a given z.
+      psd->dQrho_dz_tot[index_z] = 0;
+    }else{
+      /** Import quantities from background structure */
+      class_call(background_tau_of_z(pba,
+                                     psd->z[index_z],
+                                     &tau),
+                 pba->error_message,
                  psd->error_message);
+      class_call(background_at_tau(pba,
+                                   tau,
+                                   long_info,
+                                   inter_closeby,
+                                   &last_index_back,
+                                   pvecback),
+                 pba->error_message,
+                 psd->error_message);
+      H = pvecback[pba->index_bg_H]*_c_/_Mpc_over_m_;               // [1/s]
+      a = pvecback[pba->index_bg_a];                                // [-]
+      rho_g = pvecback[pba->index_bg_rho_g]*_Jm3_over_Mpc2_;        // [J/m^3]
+
+      heat = 0;
+
+      /** Import heat from non-injection structure */
+      if (psd->include_only_exotic == _FALSE_) {
+        class_call(noninjection_photon_heating_at_z(pni,
+                                                    psd->z[index_z],
+                                                    &heat),           // [J/(m^3 s)]
+                   pni->error_message,
+                   psd->error_message);
+      }
+
+      /** Add heat from injection structure */
+      if (pth->has_exotic_injection == _TRUE_) {
+        class_call(injection_deposition_at_z(pth,
+                                             psd->z[index_z]),
+                   pin->error_message,
+                   psd->error_message);
+        heat += pin->pvecdeposition[pin->index_dep_heat];
+      }
+
+      /** Calculate total heating rate */
+      psd->dQrho_dz_tot[index_z] = heat*a/(H*rho_g);                // [-]
+    }
     }
 
-    /** Add heat from injection structure */
-    if (pth->has_exotic_injection == _TRUE_) {
-      class_call(injection_deposition_at_z(pth,
-                                           psd->z[index_z]),
-                 pin->error_message,
-                 psd->error_message);
-      heat += pin->pvecdeposition[pin->index_dep_heat];
-    }
-
-    /** Calculate total heating rate */
-    psd->dQrho_dz_tot[index_z] = heat*a/(H*rho_g);                // [-]
-  }
 
   free(pvecback);
 
@@ -1568,7 +1578,6 @@ int distortions_interpolate_br_data(struct distortions* psd,
   int index = *last_index;
   int index_k;
   double h,a,b;
-
   /** Find z position */
   class_call(array_spline_hunt(psd->br_exact_z,
                                psd->br_exact_Nz,
@@ -1976,5 +1985,150 @@ int distortions_output_sd_data(struct distortions * psd,
     }
   }
 
+  return _SUCCESS_;
+}
+
+
+
+
+
+
+
+
+int output_distortions_at_highz(
+                       struct distortions * psd
+                       ) {
+
+  /** Local variables*/
+  FileName file_name_heat, file_name_distortion;
+  FILE * out_heat, * out_distortion;
+
+  char titles_heat[_MAXTITLESTRINGLENGTH_]={0};
+  char titles_distortion[_MAXTITLESTRINGLENGTH_]={0};
+
+  double * data_heat, * data_distortion;
+  int size_data_heat, size_data_distortion;
+  int number_of_titles_heat, number_of_titles_distortion;
+
+  if (psd->distortions_verbose > 0) {
+    printf("output heating at z=%e\n",psd->z_output_sd);
+  }
+    /* File name */
+    class_sprintf(file_name_heat,"heating_highz.dat");
+
+    /* Titles */
+    class_call(distortions_output_heat_titles(psd,titles_heat),
+               psd->error_message,
+               psd->error_message);
+    number_of_titles_heat = 3;
+
+    /* Data array */
+    size_data_heat = number_of_titles_heat*psd->z_size;
+    class_alloc(data_heat,
+                sizeof(double)*size_data_heat,
+                psd->error_message);
+    class_call(distortions_output_heat_data(psd,
+                                            number_of_titles_heat,
+                                            data_heat),
+               psd->error_message,
+               psd->error_message);
+    /* File IO */
+    class_open(out_heat,
+               file_name_heat,
+               "w",
+               psd->error_message);
+
+      fprintf(out_heat,"# Output heat at z=%e\n",psd->z_output_sd);
+      fprintf(out_heat,"# Heat is d(Q/rho)/dz\n");
+      fprintf(out_heat,"# LHeat is d(Q/rho)/dlnz\n");
+      fprintf(out_heat,"#\n");
+
+    output_print_data_sd_highz(out_heat,
+                      titles_heat,
+                      data_heat,
+                      size_data_heat);
+    free(data_heat);
+    fclose(out_heat);
+
+    if (psd->distortions_verbose > 0) {
+      printf("output SD at z=%e\n",psd->z_output_sd);
+    }
+    /* File name */
+    class_sprintf(file_name_distortion,"SD_highz.dat");
+
+    /* Titles */
+    class_call(distortions_output_sd_titles(psd,titles_distortion),
+               psd->error_message,
+               psd->error_message);
+    number_of_titles_distortion = get_number_of_titles(titles_distortion);
+
+    /* Data array */
+    size_data_distortion = number_of_titles_distortion*psd->x_size;
+    class_alloc(data_distortion,
+                sizeof(double)*size_data_distortion,
+                psd->error_message);
+    class_call(distortions_output_sd_data(psd,
+                                          number_of_titles_distortion,
+                                          data_distortion),
+               psd->error_message,
+               psd->error_message);
+
+    /* File IO */
+    class_open(out_distortion,
+               file_name_distortion,
+               "w",
+               psd->error_message);
+
+      fprintf(out_distortion,"# Output SD at z=%e\n",psd->z_output_sd);
+      fprintf(out_distortion,"# SD_tot is the amplitude of the overall spectral distortion (SD)\n");
+      fprintf(out_distortion,"# The SD[i] are the amplitudes of the individual SDs\n");
+      fprintf(out_distortion,"# The SDs are given in units [10^-26 W m^-2 Hz^-1 sr^-1] \n");
+      fprintf(out_distortion,"#\n");
+
+
+    output_print_data_sd_highz(out_distortion,
+                      titles_distortion,
+                      data_distortion,
+                      size_data_distortion);
+    free(data_distortion);
+    fclose(out_distortion);
+
+  return _SUCCESS_;
+}
+
+
+int output_print_data_sd_highz(FILE *out,
+                      char titles[_MAXTITLESTRINGLENGTH_],
+                      double *dataptr,
+                      int size_dataptr){
+  int colnum=1, number_of_titles;
+  int index_title, index_tau;
+  char thetitle[_MAXTITLESTRINGLENGTH_];
+  char *pch;
+
+  /** Summary*/
+
+  /** - First we print the titles */
+  fprintf(out,"#");
+
+  strcpy(thetitle,titles);
+  pch = strtok(thetitle,_DELIMITER_);
+  while (pch != NULL){
+    class_fprintf_columntitle(out, pch, _TRUE_, colnum);
+    pch = strtok(NULL,_DELIMITER_);
+  }
+  fprintf(out,"\n");
+
+  /** - Then we print the data */
+  number_of_titles = colnum-1;
+  if (number_of_titles>0){
+    for (index_tau=0; index_tau<size_dataptr/number_of_titles; index_tau++){
+      fprintf(out," ");
+      for (index_title=0; index_title<number_of_titles; index_title++){
+        class_fprintf_double(out, dataptr[index_tau*number_of_titles+index_title], _TRUE_);
+      }
+      fprintf(out,"\n");
+    }
+  }
   return _SUCCESS_;
 }

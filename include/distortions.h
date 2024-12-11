@@ -112,6 +112,7 @@ struct distortions
   /* Total distortion amplitude for residual distortions */
   double epsilon;
 
+  double z_min_injection;
   /* Total heating function */
   double * dQrho_dz_tot;
 
@@ -181,6 +182,13 @@ struct distortions
 
   ErrorMsg error_message;    /**< zone for writing error messages */
 
+
+  //VP: Extra stuff to output at high z for Dark History
+  short loop_over_CLASS_for_DH;
+  double z_output_sd;                           /**< Redshift at which we output; default = 3000 */
+  char output_sd_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output SD at highz */
+  char output_heat_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output heating term at highz */
+  short output_sd_at_highz; /**< Do we output at highz? default= no unless user require to use DarkHistory */
   //@}
 
 };
@@ -290,6 +298,14 @@ extern "C" {
   int distortions_output_sd_data(struct distortions * psd,
                                  int number_of_titles,
                                  double * data);
+ int output_print_data_sd_highz(FILE *out,
+                       char titles[_MAXTITLESTRINGLENGTH_],
+                       double *dataptr,
+                       int size_dataptr);
+ int output_distortions_at_highz(
+                        struct distortions * psd
+                      );
+
 
 #ifdef __cplusplus
 }

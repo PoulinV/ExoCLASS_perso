@@ -202,12 +202,12 @@ int noninjection_init(struct precision* ppr,
     pni->noninjection_table[index_z]+=dEdt;
 
     /* Second order acoustic dissipation of BAO */
-    class_call(noninjection_rate_acoustic_diss(pni,
-                                               z_coarse,
-                                               &dEdt),
-               pni->error_message,
-               pni->error_message);
-    pni->noninjection_table[index_z]+=dEdt;
+    // class_call(noninjection_rate_acoustic_diss(pni,
+    //                                            z_coarse,
+    //                                            &dEdt),
+    //            pni->error_message,
+    //            pni->error_message);
+    // pni->noninjection_table[index_z]+=dEdt;
   }
 
   /** - Spline coarse z table in view of interpolation */

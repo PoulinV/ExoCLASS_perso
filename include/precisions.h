@@ -117,7 +117,8 @@ class_string_parameter(sBBN_file,"/external/bbn/sBBN_2017.dat","sBBN file")
 /**
  * The initial z for the calculation of the recombination history
  */
-class_precision_parameter(thermo_z_initial,double, 1.e4) // 5.e6) WQ: changed for DarkHistory testing
+// class_precision_parameter(thermo_z_initial,double, 1.e4) // 5.e6) WQ: changed for DarkHistory testing
+class_precision_parameter(thermo_z_initial,double,5.e6)
 /**
  * The initial z for the calculation of the recombination history in
  * presence of idm (unless the later is tightly-coupled at this
@@ -127,7 +128,8 @@ class_precision_parameter(thermo_z_initial_if_idm,double,1.e9)
 /**
  * The switch z for the recfast calculation towards linear sampling
  */
-class_precision_parameter(thermo_z_linear,double,9.e3) // 1.e4) WQ: changed for DarkHistory testing
+class_precision_parameter(thermo_z_linear,double,1.e4)
+// class_precision_parameter(thermo_z_linear,double,9.e3) // 1.e4) WQ: changed for DarkHistory testing
 /**
  * Number of recfast integration steps (linear sampling, intermdiate times between z_linear and reionization)
  */
@@ -135,7 +137,8 @@ class_precision_parameter(thermo_Nz_lin,int,20000)
 /**
  * Number of recfast integration steps (logarithmnic sampling. early times between z-initial and z_linear)
  */
-class_precision_parameter(thermo_Nz_log,int,1000) // 5000) WQ: changed for DarkHistory testing
+class_precision_parameter(thermo_Nz_log,int, 5000)
+// class_precision_parameter(thermo_Nz_log,int,1000) // 5000) WQ: changed for DarkHistory testing
 /**
  * Evolver to be used for thermodynamics (rk, ndf15)
  */
@@ -593,7 +596,9 @@ class_precision_parameter(tol_gauss_legendre,double,ppr->smallest_allowed_variat
  * Spectral distortions precision parameters
  */
 
+
 class_precision_parameter(sd_z_min,double,1.02e3)
+// class_precision_parameter(sd_z_min,double,1)
 class_precision_parameter(sd_z_max,double,5.0e6)
 class_precision_parameter(sd_z_size,int,400)
 
