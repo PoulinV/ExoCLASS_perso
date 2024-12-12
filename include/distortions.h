@@ -184,7 +184,7 @@ struct distortions
 
 
   //VP: Extra stuff to output at high z for Dark History
-  short loop_over_CLASS_for_DH;
+  int loop_over_CLASS_for_DH;
   double z_output_sd;                           /**< Redshift at which we output; default = 3000 */
   char output_sd_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output SD at highz */
   char output_heat_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output heating term at highz */

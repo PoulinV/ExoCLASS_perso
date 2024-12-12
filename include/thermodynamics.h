@@ -187,6 +187,7 @@ struct thermodynamics
   int index_DH_Tmat;
   int index_DH_dTmat;
   int DH_mode;
+  short run_DH_with_SD;
 
   /** parameters for varying fundamental constants */
 
