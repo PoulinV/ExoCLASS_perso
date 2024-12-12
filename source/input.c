@@ -4153,10 +4153,15 @@ int input_read_parameters_injection(struct file_content * pfc,
                errmsg);
     if (flag1 == _TRUE_){
       if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+
+        strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+        pth->run_DH_with_SD = _TRUE_;
       }
       else {
+        strcat(pth->command_DH," --init_distort_file DH_interface/dummyfile.dat");
         strcat(pth->command_DH," --distort False");
+        pth->run_DH_with_SD = _FALSE_;
       }
     }
     class_call(parser_read_string(pfc,"fexc_switch",&string2,&flag1,errmsg),
@@ -5838,11 +5843,8 @@ int input_read_parameters_distortions(struct file_content * pfc,
              errmsg);
 
   if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
-
       psd->output_sd_at_highz = _TRUE_;
       class_read_double("z_output_sd", psd->z_output_sd);
-
-
   }else{
     psd->output_sd_at_highz = _FALSE_;
     psd->z_output_sd = 0;

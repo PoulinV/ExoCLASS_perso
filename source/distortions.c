@@ -56,6 +56,16 @@ int distortions_init(struct precision * ppr,
                psd->error_message);
   }
 
+  if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
+    //this step is mandatory when running DH with SD during the first iteration of the code.
+    psd->output_sd_at_highz = _TRUE_;
+    psd->z_output_sd = 3000; //update to default value.
+  }
+  else if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 1){
+    //We have already output the file! no need to do it again.
+    psd->output_sd_at_highz = _FALSE_;
+  }
+
   /** Assign values to all indices in the distortions structure */
   class_call(distortions_indices(psd),
              psd->error_message,
@@ -558,7 +568,7 @@ int distortions_get_xz_lists(struct precision * ppr,
               psd->error_message);
 
   for (index_z = 0; index_z < psd->z_size; index_z++) {
-    psd->z[index_z] = exp(log(psd->z_min+1)+psd->z_delta*index_z);
+    psd->z[index_z] = exp(log(psd->z_min)+psd->z_delta*index_z);
   }
 
   /** Define and allocate integrating weights for z array */

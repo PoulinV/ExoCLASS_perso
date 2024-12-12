@@ -29,50 +29,67 @@ int main(int argc, char **argv) {
     return _FAILURE_;
   }
 
-  if (thermodynamics_init(&pr,&ba,&th) == _FAILURE_) {
-    printf("\n\nError in thermodynamics_init \n=>%s\n",th.error_message);
-    return _FAILURE_;
+  sd.loop_over_CLASS_for_DH = 0;
+
+  while(sd.loop_over_CLASS_for_DH < 2){
+
+    if(sd.loop_over_CLASS_for_DH == 0 && th.run_DH_with_SD == _TRUE_){
+      th.recombination = hyrec;
+    }else if(sd.loop_over_CLASS_for_DH == 1 && th.run_DH_with_SD == _TRUE_){
+      // we have looped once, we can call CLASS with DH.
+      th.recombination = darkhistory;
+    }
+    else{
+      sd.loop_over_CLASS_for_DH = 1; //we don't actually do the loop, and call class only once.
+    }
+
+    if (thermodynamics_init(&pr,&ba,&th) == _FAILURE_) {
+      printf("\n\nError in thermodynamics_init \n=>%s\n",th.error_message);
+      return _FAILURE_;
+    }
+
+    if (perturbations_init(&pr,&ba,&th,&pt) == _FAILURE_) {
+      printf("\n\nError in perturbations_init \n=>%s\n",pt.error_message);
+      return _FAILURE_;
+    }
+
+    if (primordial_init(&pr,&pt,&pm) == _FAILURE_) {
+      printf("\n\nError in primordial_init \n=>%s\n",pm.error_message);
+      return _FAILURE_;
+    }
+
+    if (fourier_init(&pr,&ba,&th,&pt,&pm,&fo) == _FAILURE_) {
+      printf("\n\nError in fourier_init \n=>%s\n",fo.error_message);
+      return _FAILURE_;
+    }
+
+    if (transfer_init(&pr,&ba,&th,&pt,&fo,&tr) == _FAILURE_) {
+      printf("\n\nError in transfer_init \n=>%s\n",tr.error_message);
+      return _FAILURE_;
+    }
+
+    if (harmonic_init(&pr,&ba,&pt,&pm,&fo,&tr,&hr) == _FAILURE_) {
+      printf("\n\nError in harmonic_init \n=>%s\n",hr.error_message);
+      return _FAILURE_;
+    }
+
+    if (lensing_init(&pr,&pt,&hr,&fo,&le) == _FAILURE_) {
+      printf("\n\nError in lensing_init \n=>%s\n",le.error_message);
+      return _FAILURE_;
+    }
+
+    if (distortions_init(&pr,&ba,&th,&pt,&pm,&sd) == _FAILURE_) {
+      printf("\n\nError in distortions_init \n=>%s\n",sd.error_message);
+      return _FAILURE_;
+    }
+  if(sd.loop_over_CLASS_for_DH == 1){
+    //we output only once.
+    if (output_init(&ba,&th,&pt,&pm,&tr,&hr,&fo,&le,&sd,&op) == _FAILURE_) {
+      printf("\n\nError in output_init \n=>%s\n",op.error_message);
+      return _FAILURE_;
+    }
   }
 
-  if (perturbations_init(&pr,&ba,&th,&pt) == _FAILURE_) {
-    printf("\n\nError in perturbations_init \n=>%s\n",pt.error_message);
-    return _FAILURE_;
-  }
-
-  if (primordial_init(&pr,&pt,&pm) == _FAILURE_) {
-    printf("\n\nError in primordial_init \n=>%s\n",pm.error_message);
-    return _FAILURE_;
-  }
-
-  if (fourier_init(&pr,&ba,&th,&pt,&pm,&fo) == _FAILURE_) {
-    printf("\n\nError in fourier_init \n=>%s\n",fo.error_message);
-    return _FAILURE_;
-  }
-
-  if (transfer_init(&pr,&ba,&th,&pt,&fo,&tr) == _FAILURE_) {
-    printf("\n\nError in transfer_init \n=>%s\n",tr.error_message);
-    return _FAILURE_;
-  }
-
-  if (harmonic_init(&pr,&ba,&pt,&pm,&fo,&tr,&hr) == _FAILURE_) {
-    printf("\n\nError in harmonic_init \n=>%s\n",hr.error_message);
-    return _FAILURE_;
-  }
-
-  if (lensing_init(&pr,&pt,&hr,&fo,&le) == _FAILURE_) {
-    printf("\n\nError in lensing_init \n=>%s\n",le.error_message);
-    return _FAILURE_;
-  }
-
-  if (distortions_init(&pr,&ba,&th,&pt,&pm,&sd) == _FAILURE_) {
-    printf("\n\nError in distortions_init \n=>%s\n",sd.error_message);
-    return _FAILURE_;
-  }
-
-  if (output_init(&ba,&th,&pt,&pm,&tr,&hr,&fo,&le,&sd,&op) == _FAILURE_) {
-    printf("\n\nError in output_init \n=>%s\n",op.error_message);
-    return _FAILURE_;
-  }
 
   /****** all calculations done, now free the structures ******/
 
@@ -115,7 +132,9 @@ int main(int argc, char **argv) {
     printf("\n\nError in thermodynamics_free \n=>%s\n",th.error_message);
     return _FAILURE_;
   }
+  sd.loop_over_CLASS_for_DH++;//increment loop count.
 
+  }
   if (background_free(&ba) == _FAILURE_) {
     printf("\n\nError in background_free \n=>%s\n",ba.error_message);
     return _FAILURE_;
