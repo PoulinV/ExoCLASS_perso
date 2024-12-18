@@ -64,7 +64,15 @@ int distortions_init(struct precision * ppr,
   else if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 1){
     //We have already output the file! no need to do it again.
     psd->output_sd_at_highz = _FALSE_;
+    //this means we are using DH to compute distortions. Now read in those distortions.
+    class_call(injection_read_DH_distortions_from_file(psd,pth),
+             psd->error_message,
+             psd->error_message);
   }
+  // class_call(injection_read_DH_distortions_from_file(psd),
+  //          psd->error_message,
+  //          psd->error_message);
+
 
   /** Assign values to all indices in the distortions structure */
   class_call(distortions_indices(psd),
@@ -96,6 +104,7 @@ int distortions_init(struct precision * ppr,
                psd->error_message,
                psd->error_message);
   }
+
   return _SUCCESS_;
 }
 
@@ -1073,6 +1082,36 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
     }
   }
 
+    if(psd->loop_over_CLASS_for_DH == 1 && pth->run_DH_with_SD == _TRUE_){
+      //this means we are using DH to compute distortions. Now add in those distortions.
+      //overwrite the SD from CLASS to avoid double counting. SD from z > 3000 are computed in CLASS, and then passed to DH.
+      for (index_x=0;index_x<psd->x_size;++index_x){
+                //simple extrapolation as 0 (i.e. no distortion) outside of the range computed by DH.
+                if(psd->x[index_x] > psd->DH_dist_table[3*(psd->DH_eng_size-1)]){
+                  psd->DI[index_x] = 0;
+                }
+                else if(psd->x[index_x] < psd->DH_dist_table[0]){
+                  psd->DI[index_x] = 0;
+
+                }else{
+                  class_call(array_interpolate_spline_transposed(psd->DH_dist_table,
+                                                          psd->DH_eng_size,
+                                                          3,
+                                                          0,
+                                                          1,
+                                                          2,
+                                                          psd->x[index_x],
+                                                          &last_index,
+                                                          &(psd->DI[index_x]),
+                                                          psd->error_message),
+                      psd->error_message,
+                      psd->error_message);
+                    psd->DI[index_x] /= (1e26*psd->DI_units);
+                }
+
+
+    }
+  }
   /** Include additional sources of distortions */
   /* Superposition of blackbodies */
   //psd->sd_parameter_table[psd->index_type_y] += 2.525e-7;   // CMB Dipole (Chluba & Sunyaev 2004)
@@ -2140,5 +2179,100 @@ int output_print_data_sd_highz(FILE *out,
       fprintf(out,"\n");
     }
   }
+  return _SUCCESS_;
+}
+
+
+
+/**
+ * Read and interpolate the DarkHistory inputs from external file.
+ *
+ * @param pth   Input/Output: pointer to thermodynamics structure
+ * @return the error status
+ */
+int injection_read_DH_distortions_from_file( struct distortions * psd,struct thermodynamics * pth){
+  /** - Define local variables */
+  FILE *DH_input = NULL;
+  char line[_LINE_LENGTH_MAX_];
+  char * left;
+  int headlines, index_DH, index_eng, index_psd;
+
+  /** Assign initial vales */
+  headlines = 0;
+  psd->DH_eng_size = 0;
+
+  /** Define indices for DarkHistory table */
+  index_DH = 1; // start at 1 because skipping redshift at index 0
+  class_define_index(psd->index_DH_dNdE,_TRUE_,index_DH,1);
+  psd->DH_dist_size = index_DH-1; // subtract one because not including redshift
+  // psd->DH_dist_file_name = "/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/DH_interface/tmp_distortions_CLASSformat.txt";
+  /** Open file */
+  // class_open(DH_input, psd->DH_dist_file_name, "r", psd->error_message);
+  class_open(DH_input,pth->DH_dist_file_name  , "r", psd->error_message);
+
+
+  while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
+    headlines++;
+
+    /* Eliminate blank spaces at beginning of line */
+    left=line;
+    while (left[0]==' ') {
+      left++;
+    }
+
+    /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
+       be the beginning of some data (it is not a newline, a #, a %, etc.) */
+    if (left[0] > 39) {
+
+      /* If the line contains data, we must interprete it. If num_lines == 0 , the current line must contain
+         its value. Otherwise, it must contain (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE). */
+
+      /* Read num_lines, infer size of arrays and allocate them */
+      class_test(sscanf(line,"%d",&(psd->DH_eng_size)) != 1,
+                 psd->error_message,
+                 "could not read the initial integer of number of lines in line %i in file '%s' \n",
+                 headlines,pth->DH_dist_file_name);
+
+      /* (z, f, ddf)*/
+      class_alloc(psd->DH_dist_table,
+                  3*psd->DH_eng_size*sizeof(double),
+                  psd->error_message);
+
+      break;
+    }
+  }
+
+  /** - Read file */
+  for(index_eng=0;index_eng<psd->DH_eng_size;++index_eng){
+    /* Read coefficients */
+    class_test(fscanf(DH_input,"%lg %lg",
+                      &(psd->DH_dist_table[index_eng*3+0]),  // eng
+                      &(psd->DH_dist_table[index_eng*3+1])  // dNdE
+                     ) != 2,
+               psd->error_message,
+               "could not read value of parameters coefficients in line %i in file '%s'\n",
+               headlines,pth->DH_dist_file_name);
+  }
+
+  fclose(DH_input);
+
+
+
+
+  /** - Spline file contents */
+  /* Spline in one dimension */
+  for(index_psd=0;index_psd<psd->DH_dist_size;++index_psd){
+    class_call(array_spline(psd->DH_dist_table,
+                            2*psd->DH_dist_size+1,
+                            psd->DH_eng_size,
+                            0,
+                            1+index_psd,
+                            1+index_psd+psd->DH_dist_size,
+                            _SPLINE_NATURAL_,
+                            psd->error_message),
+              psd->error_message,
+              psd->error_message);
+  }
+
   return _SUCCESS_;
 }

@@ -2995,20 +2995,31 @@ int thermodynamics_sources(
   switch (pth->recombination){
 
     case darkhistory:
-      class_call(array_interpolate(pth->DH_table,
-                                   2*pth->DH_th_size+1,
-                                   pth->DH_z_size,
-                                   0, // redshift should be in first column...should we avoid hardcoding this?
-                                   z,
-                                   &last_index, // what is this
-                                   pvecDH,
-                                   pth->DH_th_size+1,
-                                   pth->error_message),
-                 pth->error_message,
-                 pth->error_message);
-      x = pvecDH[pth->index_DH_xe];
-      Tmat = pvecDH[pth->index_DH_Tmat];
-      dTmat = pvecDH[pth->index_DH_dTmat];
+      if(z>pth->DH_table[(pth->DH_z_size-1)*(2*pth->DH_th_size+1)]){
+        //pth->DH_z_size*(2*pth->DH_th_size+1)
+        Tmat = y[ptv->index_ti_D_Tmat] + Trad;
+        /* Note that dy[index_ti_Q] represents dQ/d(-z), thus we need -dy here */
+        dTmat = -dy[ptv->index_ti_D_Tmat] + Trad/(1.+z);
+        /* get x */
+        x = ptdw->x_reio;
+        // printf("z %e > %e Tmat %e dTmat %e x %e\n",z,pth->DH_table[(pth->DH_z_size-1)*(2*pth->DH_th_size+1)],Tmat,dTmat, x );
+      }else{
+        class_call(array_interpolate(pth->DH_table,
+                                     2*pth->DH_th_size+1,
+                                     pth->DH_z_size,
+                                     0, // redshift should be in first column...should we avoid hardcoding this?
+                                     z,
+                                     &last_index, // what is this
+                                     pvecDH,
+                                     pth->DH_th_size+1,
+                                     pth->error_message),
+                   pth->error_message,
+                   pth->error_message);
+        x = pvecDH[pth->index_DH_xe];
+        Tmat = pvecDH[pth->index_DH_Tmat];
+        dTmat = pvecDH[pth->index_DH_dTmat];
+      }
+
       break;
 
     default:
