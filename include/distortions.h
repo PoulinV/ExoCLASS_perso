@@ -184,6 +184,10 @@ struct distortions
 
 
   //VP: Extra stuff to output at high z for Dark History
+  double* DH_dist_table; // table to store thermodynamics history
+  int DH_eng_size; // number of lines read into table
+  int DH_dist_size; // number of thermodynamics quantities. Usually 3 for xe, Tmat, and dTmat
+  int index_DH_dNdE;
   int loop_over_CLASS_for_DH;
   double z_output_sd;                           /**< Redshift at which we output; default = 3000 */
   char output_sd_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output SD at highz */
@@ -305,8 +309,7 @@ extern "C" {
  int output_distortions_at_highz(
                         struct distortions * psd
                       );
-
-
+ int injection_read_DH_distortions_from_file( struct distortions * psd,struct thermodynamics * th);
 #ifdef __cplusplus
 }
 #endif

@@ -178,6 +178,7 @@ struct thermodynamics
 
   /** DarkHistory quantities */
   char DH_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input
+  char DH_dist_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH distortion as input
   FileName  command_DH;  /**< string with the command for calling 'external_fz' */
 
   double* DH_table; // table to store thermodynamics history

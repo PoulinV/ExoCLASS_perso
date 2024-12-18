@@ -3865,6 +3865,24 @@ int input_read_parameters_injection(struct file_content * pfc,
                errmsg,
                errmsg);
     strcpy(pth->DH_file_name, string1);
+    class_call(parser_read_string(pfc,"distort",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_ && (string_begins_with(string2,'y') || string_begins_with(string2,'Y'))){
+      class_call(parser_read_string(pfc,
+                                    "DH distortion file name",
+                                    &(string1),
+                                    &(flag1),
+                                    errmsg),
+                 errmsg,
+                 errmsg);
+      strcpy(pth->DH_dist_file_name, string1);
+      pth->run_DH_with_SD = _TRUE_;
+    }
+      else{
+      pth->run_DH_with_SD = _FALSE_;
+
+    }
   }else if(strcmp(string1,"call_script") == 0){
       pth->DH_mode =call_script;
       flag2=_TRUE_;
@@ -4156,6 +4174,14 @@ int input_read_parameters_injection(struct file_content * pfc,
 
         strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+        class_call(parser_read_string(pfc,
+                                      "DH distortion file name",
+                                      &(string1),
+                                      &(flag1),
+                                      errmsg),
+                   errmsg,
+                   errmsg);
+        strcpy(pth->DH_dist_file_name, string1);
         pth->run_DH_with_SD = _TRUE_;
       }
       else {
