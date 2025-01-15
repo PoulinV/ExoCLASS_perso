@@ -1673,7 +1673,7 @@ int input_read_parameters(struct file_content * pfc,
              errmsg);
 
   /** Read parameters for exotic energy injection quantities */
-  class_call(input_read_parameters_injection(pfc,ppr,pth,
+  class_call(input_read_parameters_injection(pfc,ppr,pba,pth,
                                              errmsg),
              errmsg,
              errmsg);
@@ -3373,6 +3373,7 @@ int input_read_parameters_species(struct file_content * pfc,
 
 int input_read_parameters_injection(struct file_content * pfc,
                                     struct precision * ppr,
+                                    struct background * pba,
                                     struct thermodynamics * pth,
                                     ErrorMsg errmsg){
 
@@ -3628,6 +3629,12 @@ int input_read_parameters_injection(struct file_content * pfc,
             strcat(pin->command_fz," --mass=");
             sprintf(string2,"%g",pin->DM_annihilation_mass);
             strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --sigmav=");
+            sprintf(string2,"%g",pin->DM_annihilation_cross_section);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --n_cdm=");
+            sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_annihilation_mass); //in per cm^3
+            strcat(pin->command_fz,string2);
           }
 
           /* Automatic comand for annihialtion with halo boost*/
@@ -3656,6 +3663,12 @@ int input_read_parameters_injection(struct file_content * pfc,
             strcat(pin->command_fz,string2);
             strcat(pin->command_fz," --zh=");
             sprintf(string2,"%g",pin->DM_annihilation_z_halo);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --sigmav=");
+            sprintf(string2,"%g",pin->DM_annihilation_cross_section);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --n_cdm=");
+            sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_annihilation_mass); //in per cm^3
             strcat(pin->command_fz,string2);
           }
 
@@ -3704,6 +3717,10 @@ int input_read_parameters_injection(struct file_content * pfc,
             strcat(pin->command_fz," --tdec=");
             sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
             strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --n_cdm=");
+            sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_decay_mass); //in per cm^3
+            strcat(pin->command_fz,string2);
+
           }
 
           class_call(parser_read_string(pfc,
@@ -6532,12 +6549,15 @@ int input_default_params(struct background *pba,
   pin->f_eff_type = f_eff_on_the_spot;
   pin->f_eff = 1.;
   class_sprintf(pin->f_eff_file,"external/heating/example_f_eff_file.dat");
+  // class_sprintf(pin->f_eff_file,"external/heating/example_f_eff_file.dat");
 
   /** 6) Deposition function */
   pin->chi_type = chi_CK;
   /** 6.1) External file */
   class_sprintf(pin->chi_z_file,"external/heating/example_chiz_file.dat");
+  // class_sprintf(pin->chi_z_file,"external/heating/example_chiz_file.dat");
   class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
+  // class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
 
   /**
    * Default to input_read_parameters_nonlinear

@@ -285,7 +285,7 @@ class decaying_model(model):
 			if len(E) > 1:
 				normalization = trapz(tot_spec*E**2*np.log(10), logEnergies)*np.ones_like(redshift)
 			else:
-				normalization = (tot_spec*E)[0]
+				normalization = (tot_spec*E)[0]*np.ones_like(redshift)
 		elif norm_by == 'mass':
 			normalization = np.ones_like(redshift)*(m)
 		else:
@@ -293,6 +293,7 @@ class decaying_model(model):
 
 		spec_electrons = np.vectorize(_decay_scaling).__call__(redshift[None,:], ref_el_spec[:,None], t_dec)
 		spec_photons = np.vectorize(_decay_scaling).__call__(redshift[None,:], ref_ph_spec[:,None], t_dec)
+		# print(ref_el_spec[:,None],ref_ph_spec[:,None])
 
 		model.__init__(self, spec_electrons, spec_photons, normalization, logEnergies,0)
 

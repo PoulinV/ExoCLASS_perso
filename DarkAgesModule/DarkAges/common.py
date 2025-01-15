@@ -479,6 +479,7 @@ def sample_spectrum(input_spec_el, input_spec_ph, input_spec_oth, input_log10E, 
 		out_ph = np.zeros_like(sampling_log10E).astype(np.float64)
 		out_oth = np.zeros_like(sampling_log10E).astype(np.float64)
 
+	# print("in spec function",input_log10E,sampling_log10E,np.array([out_el, out_ph, out_oth]))
 	return np.array([out_el, out_ph, out_oth])
 
 ### Producing the output to be interpreted by CLASS

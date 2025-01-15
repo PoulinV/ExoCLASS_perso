@@ -70,6 +70,7 @@ class transfer(object):
 			same = same & np.all(self.transfer_phot == other.transfer_phot)
 		return same
 
+
 def transfer_dump(transfer_instance, outfile):
 	u"""Stores a initialized instance of the :class:`transfer <DarkAges.transfer.transfer>`
 	-class in file using the dump method of :class:`dill`.
@@ -82,9 +83,9 @@ def transfer_dump(transfer_instance, outfile):
 		Filename (absolute or relative) under which the transfer instance should be stored
 	"""
 
-	#if not isinstance(transfer_instance, transfer):
-	#	from .__init__ import DarkAgesError
-	#	raise DarkAgesError('You did not include a proper instance of the class "transfer"')
+	if not isinstance(transfer_instance, transfer):
+		from .__init__ import DarkAgesError
+		raise DarkAgesError('You did not include a proper instance of the class "transfer"')
 	with open(outfile, 'wb') as f_dump:
 		dill.dump(transfer_instance, f_dump)
 	return

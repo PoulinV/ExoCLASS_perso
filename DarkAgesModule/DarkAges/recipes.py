@@ -50,6 +50,7 @@ import sys
 from .common import finalize, feff_finalize, sample_spectrum
 from .__init__ import transfer_functions, DarkAgesError, get_redshift, get_logEnergies, print_info, print_warning, channel_dict
 from .model import annihilating_model, decaying_model, evaporating_model, annihilating_halos_model, accreting_model
+from .spectral_distortions import spectral_distortions, spectral_distortion_today, spectral_distortions_finalize
 from .interpolator import logInterpolator, NDlogInterpolator
 
 ##### Functions related to executing a script-like file
@@ -213,7 +214,7 @@ def evaporating_PBH( PBH_mass_ini, transfer_functions, logEnergies=None, redshif
 					  f_eff,
 					  **DarkOptions)
 
-def loading_from_specfiles(fnames, transfer_functions, mass,  logEnergies=None, redshift=None, t_dec=np.inf,zh=1.,fh=0., hist='annihilation', branchings=[1.], **DarkOptions):
+def loading_from_specfiles(fnames, transfer_functions, spectral_distortions,mass,  logEnergies=None, redshift=None, t_dec=np.inf,zh=1.,fh=0.,sigmav=3e-26,n_cdm=0, hist='annihilation', branchings=[1.], **DarkOptions):
 	u"""Wrapper to calculate :math:`f(z)` and print the table for all five deposition channels
 	from spectra tabulated in files for a given injection history.
 
@@ -263,79 +264,14 @@ def loading_from_specfiles(fnames, transfer_functions, mass,  logEnergies=None, 
 
 	if logEnergies is None: logEnergies = get_logEnergies()
 	if redshift is None: redshift = get_redshift()
-
-	try:
-		assert len(fnames) == len(branchings)
-	except AssertionError:
-		raise DarkAgesError('The number of spectra ({:d}) and the number of provided branching ratios ({:d}) do not match'.format(spectra.shape[-1],branchings.shape[-1]))
-
-	dirac_mode = False
-	for specname in fnames:
-		if specname.find('dirac') != -1 or specname.find('Dirac') != -1:
-			dirac_mode = True
-			break
-	Cirelli_particles = ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs']
-
-	if not dirac_mode:
-		if "decay" in hist:
-			equivalent_mass = mass/2.
-		else:
-			equivalent_mass = mass
-
-		spectra = np.empty(shape=(3,len(logEnergies),len(fnames)), dtype=np.float64)
-		for idx, fname in enumerate(fnames):
-			if os.path.isfile(fname):
-				spec_interpolator = load_from_spectrum(fname, logEnergies, injection_history=hist, **DarkOptions)
-				lower = spec_interpolator.get_lower()
-				upper = spec_interpolator.get_upper()
-				if equivalent_mass < lower or equivalent_mass > upper:
-					print_warning('The spectra-file >>{:s}<< contains only spectra in the mass range [{:.2g}, {:.2g}]. Hence the spectrum you asked for (mass: {:.2g} - equivalent mass: {:.2g}) cannot be deduced. Return zeros.'.format(fname, lower, upper, mass, equivalent_mass))
-					spectra[:,:,idx] = np.zeros(shape=(3,len(logEnergies)), dtype=np.float64)
-				else:
-					spectra[:,:,idx] = spec_interpolator.__call__(equivalent_mass)
-			elif fname in Cirelli_particles:
-				from .special_functions import secondaries_from_cirelli
-				spectra[:,:,idx] = secondaries_from_cirelli(logEnergies,mass,fname, injection_history=hist)
-			else:
-				raise DarkAgesError('One of your inputs ({:s}) is neither a valid filename nor a known particle from which I can take the particle spectrum out of the PPPC: "electron","muon","tau","quark","charm","bottom","top","wboson","zboson","gluon","photon","higgs", "dirac_electron", "dirac_photon"'.format(fname))
-		tot_spec = np.tensordot(spectra, branchings, axes=(2,0))
-
-	else:
-		spectra = np.empty(shape=(3,1,len(fnames)), dtype=np.float64)
-		if hist == 'decay':
-			logEnergies = np.ones((1,))*np.log10(1e9*0.5*mass)
-		elif hist == 'annihilation' or hist =='annihilation_halos':
-			logEnergies = np.ones((1,))*np.log10(1e9*mass)
-		else:
-			raise DarkAgesError('The \'dirac-mode\' is not compatible with the history "{:s}". I am so sorry.'.format(hist))
-		for idx, fname in enumerate(fnames):
-			if fname == 'Dirac_electron' or fname == 'dirac_electron':
-				spectra[:,:,idx] = np.array([2.,0.,0.]).reshape(3,1)
-			elif fname == 'Dirac_photon' or fname == 'dirac_photon':
-				spectra[:,:,idx] = np.array([0.,2.,0.]).reshape(3,1)
-			else:
-				raise DarkAgesError('I could not interpret the spectrum-input >>{0}<< in combination with dirac-like injection spectra.'.format(fname))
-		tot_spec = np.tensordot(spectra, branchings, axes=(2,0))
-
-	if hist == 'decay':
-		model_from_file = decaying_model(tot_spec[0], tot_spec[1], tot_spec[2], 1e9*mass, t_dec,logEnergies,redshift, **DarkOptions)
-	elif hist == 'annihilation':
-		model_from_file = annihilating_model(tot_spec[0], tot_spec[1], tot_spec[2], 1e9*mass,logEnergies,redshift, **DarkOptions)
-	elif hist == 'annihilation_halos':
-		model_from_file = annihilating_halos_model(tot_spec[0], tot_spec[1], tot_spec[2], 1e9*mass,zh,fh,logEnergies,redshift, **DarkOptions)
-	else:
-		raise DarkAgesError('The method >> {:s} << cannot deal with the injection history >> {:s} <<'.format(loading_from_specfiles.__name__, hist))
-	try:
-		assert len(channel_dict) == len(transfer_functions)
-	except AssertionError:
-		raise DarkAgesError('The number of "transfer" instances ({:d}) and the number of channels ({:d}) do not match'.format(len(transfer_functions),len(channel_dict)))
+	model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
 
 	print_feff = DarkOptions.get("print_f_eff", False)
 	if not print_feff:
 		f_function = np.zeros( shape=(len(channel_dict),len(redshift)), dtype=np.float64 )
 		for channel in channel_dict:
 			idx = channel_dict[channel]
-			f_function[idx,:] = model_from_file.calc_f(transfer_functions[idx], **DarkOptions)[-1]
+			f_function[idx,:] = model.calc_f(transfer_functions[idx], **DarkOptions)[-1]
 
 		finalize(redshift,
 				 f_function[channel_dict['Heat']],
@@ -348,7 +284,7 @@ def loading_from_specfiles(fnames, transfer_functions, mass,  logEnergies=None, 
 		f_eff = np.zeros( shape=(len(redshift),), dtype=np.float64 )
 		from .__init__ import transfer_functions_corr as tf_corr
 		transfer_comb = transfer_functions.sum() - tf_corr
-		f_eff[:] = model_from_file.calc_f(transfer_comb, **DarkOptions)[-1]
+		f_eff[:] = model.calc_f(transfer_comb, **DarkOptions)[-1]
 		#if hist == 'decay':
 		#	from .common import time_at_z
 		#	f_eff *= np.exp(time_at_z(redshift)/t_dec)
@@ -357,6 +293,140 @@ def loading_from_specfiles(fnames, transfer_functions, mass,  logEnergies=None, 
 					  f_eff,
 					  **DarkOptions)
 
+def compute_distortions(fnames, spectral_distortions,mass,  t_dec=np.inf,zh=1.,fh=0.,sigmav=3e-26,n_cdm=0, hist='annihilation', branchings=[1.], **DarkOptions):
+	u"""Wrapper to calculate :math:`SD(nu)` and print a two column table
+	from distortions transfer functions tabulated in files for a given injection history and spectra.
+
+	If more than one spectrum is given, an information about their relative weighting needs to be
+	given by :code:`branching`.
+
+	Parameters
+	----------
+	fnames : :obj:`str`
+		Filename (or array of filenames) which include the table of the spectra.
+		Can either be relative or absolute.
+	spectral_distortions : :obj:`class`
+		Array of initialized instance of :class:`transfer <DarkAges.spectral_distortions.spectral_distortions>`
+		for the spectral_distortions transfer functions from electrons and photons injections as computed by
+		T. Slatyer (c.f. :meth:`channel_dict <DarkAges.__init__.channel_dict>`)
+	mass : :obj:`float`
+		Mass of the DM candidate (*in units of* :math:`\\mathrm{GeV}`)
+	t_dec : :obj:`float`
+		Lifetime of the DM candidate for a decaying species (*in units of* :math:`\\mathrm{s}`)
+		Mandatory for :code:`hist='decay'` (Will be ignored for
+		:code:`hist='annihilation'` and :code:`hist='annihilation_halos'`.
+		In that case you can set it to infinity)
+	sigmav : :obj:`float`
+		thermally averaged annihilation cross section times velocity of the DM candidate for an annihilating species (*in units of* :math:`\\mathrm{s}`)
+	n_cdm : :obj:`float`
+		number density of the annihilating or decaying species (*in units of* :math:`\\mathrm{s}`)
+		Mandatory for :code:`hist='decay'` :code:`hist='annihilation'` and  :code:`hist='annihilation_halos'`. (Will be ignored for other histories)
+	hist : :obj:`str`, *optional*
+		String with the energy injection history to consider. Valid options are:
+		:code:`'annihilation'`, :code:`hist='annihilation_halos'` and :code:`'decay'`.
+		If not given the default value :code:`hist='annihilation'` will be taken.
+	branchings : :obj:`array-like`
+		Array of the relative contributions of each of the spectra specified in
+		:code:`fnames`. Need to add upp to 1. and need to have the same number
+		of entries as :code:`fnames`.
+		If :code:`fnames` has on one entry, the default value :code:`branchings=[1.]`
+		is taken
+
+	Raises
+	------
+	DarkAgesError
+		if the entries in :code:`branchings` do not add up to one and/or the
+		number of entries in :code:`branchings` is not consistent with the number of
+		entries in :code:`fnames`
+	"""
+
+
+
+	print_spectral_distortion = DarkOptions.get("print_spectral_distortion", False)
+	if print_spectral_distortion:
+            logEnergies=np.log10(spectral_distortions.E_injected)
+            redshift = spectral_distortions.z_injected
+            model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
+            distortions=  np.zeros( shape=(len(spectral_distortions.frequency),), dtype=np.float64 )
+            distortions[:]= spectral_distortion_today(spectral_distortions.frequency,spectral_distortions.z_injected,spectral_distortions.E_injected,spectral_distortions.spectral_distortions_phot,
+            spectral_distortions.spectral_distortions_elec,model.spec_electrons,model.spec_photons, sigmav=sigmav,t_dec=t_dec,n_cdm=n_cdm,hist=hist,normalization=model.normalization,  **DarkOptions)
+            spectral_distortions_finalize(spectral_distortions.frequency,distortions,**DarkOptions)
+
+	logEnergies = get_logEnergies()
+	redshift = get_redshift()
+	model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
+
+def spec_elec_and_phot(fnames,mass,  logEnergies=None, redshift=None, t_dec=np.inf,zh=1.,fh=0., hist='annihilation', branchings=[1.], **DarkOptions):
+
+
+    	try:
+    		assert len(fnames) == len(branchings)
+    	except AssertionError:
+    		raise DarkAgesError('The number of spectra ({:d}) and the number of provided branching ratios ({:d}) do not match'.format(spectra.shape[-1],branchings.shape[-1]))
+
+    	dirac_mode = False
+    	for specname in fnames:
+    		if specname.find('dirac') != -1 or specname.find('Dirac') != -1:
+    			dirac_mode = True
+    			break
+    	Cirelli_particles = ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs']
+        ##we create spectrum adapted to distortions
+    	if not dirac_mode:
+            if "decay" in hist:
+                equivalent_mass = mass/2.
+            else:
+                equivalent_mass = mass
+
+            spectra = np.empty(shape=(3,len(logEnergies),len(fnames)), dtype=np.float64)
+            for idx, fname in enumerate(fnames):
+                if os.path.isfile(fname):
+                    spec_interpolator = load_from_spectrum(fname, logEnergies, injection_history=hist, **DarkOptions)
+                    lower = spec_interpolator.get_lower()
+                    upper = spec_interpolator.get_upper()
+                    if equivalent_mass < lower or equivalent_mass > upper:
+                        print_warning('The spectra-file >>{:s}<< contains only spectra in the mass range [{:.2g}, {:.2g}]. Hence the spectrum you asked for (mass: {:.2g} - equivalent mass: {:.2g}) cannot be deduced. Return zeros.'.format(fname, lower, upper, mass, equivalent_mass))
+                        spectra[:,:,idx] = np.zeros(shape=(3,len(logEnergies)), dtype=np.float64)
+                    else:
+                        spectra[:,:,idx] = spec_interpolator.__call__(equivalent_mass)
+                elif fname in Cirelli_particles:
+                    from .special_functions import secondaries_from_cirelli
+                    spectra[:,:,idx] = secondaries_from_cirelli(logEnergies,mass,fname, injection_history=hist)
+                else:
+                    raise DarkAgesError('One of your inputs ({:s}) is neither a valid filename nor a known particle from which I can take the particle spectrum out of the PPPC: "electron","muon","tau","quark","charm","bottom","top","wboson","zboson","gluon","photon","higgs", "dirac_electron", "dirac_photon"'.format(fname))
+            tot_spec = np.tensordot(spectra, branchings, axes=(2,0))
+
+    	else:
+            spectra = np.empty(shape=(3,1,len(fnames)), dtype=np.float64)
+            if hist == 'decay':
+                logEnergies = np.ones((1,))*np.log10(1e9*0.5*mass)
+            elif hist == 'annihilation' or hist =='annihilation_halos':
+                logEnergies = np.ones((1,))*np.log10(1e9*mass)
+            else:
+                raise DarkAgesError('The \'dirac-mode\' is not compatible with the history "{:s}". I am so sorry.'.format(hist))
+            for idx, fname in enumerate(fnames):
+                if fname == 'Dirac_electron' or fname == 'dirac_electron':
+                    spectra[:,:,idx] = np.array([2.,0.,0.]).reshape(3,1)
+                elif fname == 'Dirac_photon' or fname == 'dirac_photon':
+                    spectra[:,:,idx] = np.array([0.,2.,0.]).reshape(3,1)
+                else:
+                    raise DarkAgesError('I could not interpret the spectrum-input >>{0}<< in combination with dirac-like injection spectra.'.format(fname))
+            tot_spec = np.tensordot(spectra, branchings, axes=(2,0))
+
+
+    	# print(tot_spec[0], tot_spec[1], tot_spec[2])
+    	if hist == 'decay':
+            model_from_file = decaying_model(tot_spec[0], tot_spec[1], tot_spec[2], 1e9*mass, t_dec,logEnergies=logEnergies,redshift=redshift, **DarkOptions)
+    	elif hist == 'annihilation':
+            model_from_file = annihilating_model(tot_spec[0], tot_spec[1], tot_spec[2], 1e9*mass,logEnergies,redshift, **DarkOptions)
+    	elif hist == 'annihilation_halos':
+            model_from_file = annihilating_halos_model(tot_spec[0], tot_spec[1], tot_spec[2], 1e9*mass,zh,fh,logEnergies,redshift, **DarkOptions)
+    	else:
+            raise DarkAgesError('The method >> {:s} << cannot deal with the injection history >> {:s} <<'.format(loading_from_specfiles.__name__, hist))
+    	try:
+            assert len(channel_dict) == len(transfer_functions)
+    	except AssertionError:
+            raise DarkAgesError('The number of "transfer" instances ({:d}) and the number of channels ({:d}) do not match'.format(len(transfer_functions),len(channel_dict)))
+    	return model_from_file
 def load_from_spectrum(fname, logEnergies, injection_history="annihilation", **DarkOptions):
 	u"""Wrapper to return the interpolated spectra of electrons and positrons,
 	photons, and other particles as an initialized instance of the

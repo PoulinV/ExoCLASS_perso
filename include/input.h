@@ -383,6 +383,7 @@ extern "C" {
 
   int input_read_parameters_injection(struct file_content * pfc,
                                       struct precision * ppr,
+                                      struct background * pba,
                                       struct thermodynamics * pth,
                                       ErrorMsg errmsg);
 

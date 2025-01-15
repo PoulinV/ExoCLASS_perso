@@ -29,6 +29,7 @@ In particular, these variables are
 
 from __future__ import absolute_import, division, print_function
 from builtins import range
+from copy import deepcopy as _dcp
 
 import numpy as np
 np.seterr(all='ignore')
@@ -43,10 +44,11 @@ logEnergies = None
 redshift = None
 transfer_functions = None
 transfer_functions_corr = None
+spectral_distortions_functions = None
 CosmoBackground = None
 
 from .transfer import transfer, transfer_dump, transfer_load
-
+from .spectral_distortions import spectral_distortions, spectral_distortions_dump, spectral_distortions_load
 DarkOptions = dict()
 
 channel_dict = {
@@ -174,6 +176,7 @@ def set_background(H0 = 67.27, Om_M = 0.3156, Om_R = 8e-5):
 	CosmoBackground.update({'H0':H0*_km_per_Mpc,'Omega_m':Om_M,'Omega_r':Om_R})
 	return
 
+
 def get_redshift():
 	u"""Returns the global array with the values of :math:`z+1` used at various
 	places throughout the code.
@@ -285,6 +288,33 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 		_transfer_load_from_dump()
 	del transfer_is_initialized
 	del i
+#
+def _spectral_distortions_init_and_dump():
+	global spectral_distortions_functions
+	spectral_distortions_functions = spectral_distortions(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_mock_data.dat'))
+	spectral_distortions_dump(spectral_distortions_functions, os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_mock_data.obj'))
+
+def _spectral_distortions_load_from_dump():
+	global spectral_distortions_functions
+	spectral_distortions_functions = spectral_distortions_load( os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface/tf_mock_data.obj') )
+
+#################################
+
+if (spectral_distortions_functions is None):
+
+	spectral_distortions_functions = np.empty(shape=1, dtype=spectral_distortions)
+
+	spectral_distortions_is_initialized = True
+	spectral_distortions_is_initialized = spectral_distortions_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_mock_data.obj'))
+
+	if not spectral_distortions_is_initialized:
+		print_info('The spectral distortion function seem not to be initialized. This will be done now. this may take a few seconds.')
+		_spectral_distortions_init_and_dump()
+		print_info('The spectral distortion function is now initialized and loaded.\n')
+	else:
+		# print_info('The transfer functions are already initialized and loaded.\n')
+		_spectral_distortions_load_from_dump()
+	del spectral_distortions_is_initialized
 
 if logEnergies is None: set_logEnergies(transfer_functions[0].log10E[:])
 if redshift is None: set_redshift(transfer_functions[0].z_deposited[:])
