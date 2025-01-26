@@ -318,6 +318,57 @@ def evaluate_transfer(E_original, transfer_function ,E_interp):
 	result[mask4] = transfer_function[-1]
 
 	return result
+def evaluate_spectral_distortion_transfer(E_original, transfer_function ,E_interp):
+	u"""Takes the transfer functions :math:`T(z_\\mathrm{dep.}, E, z_\\mathrm{inj.})`
+	(for fixed :math:`z_\\mathrm{dep.}` and :math:`z_\\mathrm{inj.}`) defined at the
+	energies given in :code:`E_original` and interpolates them at the energies
+	given in :code:`E_interp`.
+
+	If the energy is within the bound of the original array the interpolation is performed.
+	Outside this bounds the transfer functions are assumed to have constant value, i.e.
+	for energies bigger then :code:`max(E_original)` the value of the transfer functions
+	at :code:`max(E_original)` is taken and vice versa for energies smaller than
+	:code:`min(E_original)`, but bigger than :math:`10.2\\,\\mathrm{eV}`.
+	If the erngz is below :math:`10.2\\,\\mathrm{eV}` the particles cannot deposit
+	their energy, hence the transfer function is zero.
+
+	Parameters
+	----------
+	E_original : :obj:`array-like`
+		Array (:code:`shape = (k)`) containing the energies (in units of :math:`eV`)
+		at wich the transfer functions in :code:`transfer_function` are defined.
+	transfer_function : :obj:`array-like`
+		Array (:code:`shape = (k)`) containing the values of math:`T(z_\\mathrm{dep.}, E, z_\\mathrm{inj.})`
+		with fixed :math:`z_\\mathrm{dep.}` and :math:`z_\\mathrm{inj.}` at the energies
+		given in :code:`E_original`
+	E_interp : :obj:`array-like`
+		Array (:code:`shape = (l)`) with the enrgies at which the transfer function should be sampled.
+
+	Returns
+	-------
+	:obj:`array-like`
+		Array (:code:`shape = (l)`) containing the interpolated values of the transfer
+		functions at the energies specified in :code:`E_interp`
+	"""
+
+	log10E_original = np.log10(E_original)
+	result = np.zeros_like(E_interp)
+	# print(E_original,E_interp)
+
+	# print(np.log10(E_interp),log10E_original)
+	result=np.interp(np.log10(E_interp),log10E_original,transfer_function)
+
+	# mask1 = np.logical_and( (E_interp > E_original[0]), (E_interp < E_original[-1]) )
+	# result[mask1] = np.expm1(transfer_interpolation(np.log10(E_interp[mask1])))
+	# mask2 = np.logical_and( (E_interp <= E_original[0]), (E_interp >= 10.2) )
+	# result[mask2] = transfer_function[0]
+	# mask3  = E_interp < 10.2
+	# result[mask3] = 0.
+	# mask4 =  E_interp >= E_original[-1]
+	# result[mask4] = transfer_function[-1]
+
+	# print('transfer_function',transfer_function,'result:',result)
+	return result
 
 ### Convenience functions for the interpolation method ####
 

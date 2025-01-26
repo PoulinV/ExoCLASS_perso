@@ -56,6 +56,12 @@ int distortions_init(struct precision * ppr,
                psd->error_message);
   }
 
+  if(psd->run_DarkAges_with_distortions == _TRUE_){
+    //if we run with DarkAges module, automatically go to step 2 of the DH calculation.
+    pth->run_DH_with_SD = _TRUE_;
+    psd->loop_over_CLASS_for_DH = 1;
+  }
+
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
     //this step is mandatory when running DH with SD during the first iteration of the code.
     psd->output_sd_at_highz = _TRUE_;
@@ -69,6 +75,8 @@ int distortions_init(struct precision * ppr,
              psd->error_message,
              psd->error_message);
   }
+
+
   // class_call(injection_read_DH_distortions_from_file(psd),
   //          psd->error_message,
   //          psd->error_message);
@@ -923,7 +931,7 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
   int last_index = 0;
   int index_type, index_x, index_k;
   double sum_S, sum_G;
-  double g;
+  double x,g;
   double y_reio, DI_reio;
 
   /** Allocate space for spectral distortion amplitude in table sd_parameter_table */
@@ -1081,26 +1089,32 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
       psd->DI[index_x] += psd->sd_table[index_type][index_x];
     }
   }
-
     if(psd->loop_over_CLASS_for_DH == 1 && pth->run_DH_with_SD == _TRUE_){
       //this means we are using DH to compute distortions. Now add in those distortions.
       //overwrite the SD from CLASS to avoid double counting. SD from z > 3000 are computed in CLASS, and then passed to DH.
       for (index_x=0;index_x<psd->x_size;++index_x){
+                if(psd->run_DarkAges_with_distortions == _TRUE_){
+                  x=psd->x[index_x]*psd->x_to_nu;
+                }
+                else{
+                  x=psd->x[index_x];
+                }
                 //simple extrapolation as 0 (i.e. no distortion) outside of the range computed by DH.
-                if(psd->x[index_x] > psd->DH_dist_table[3*(psd->DH_eng_size-1)]){
+                if(x > psd->DH_dist_table[3*(psd->DH_eng_size-1)]){
                   psd->DI[index_x] = 0;
                 }
-                else if(psd->x[index_x] < psd->DH_dist_table[0]){
+                else if(x < psd->DH_dist_table[0]){
                   psd->DI[index_x] = 0;
 
                 }else{
+
                   class_call(array_interpolate_spline_transposed(psd->DH_dist_table,
                                                           psd->DH_eng_size,
                                                           3,
                                                           0,
                                                           1,
                                                           2,
-                                                          psd->x[index_x],
+                                                          x,
                                                           &last_index,
                                                           &(psd->DI[index_x]),
                                                           psd->error_message),
@@ -2196,6 +2210,7 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   char line[_LINE_LENGTH_MAX_];
   char * left;
   int headlines, index_DH, index_eng, index_psd;
+  struct injection* pin = &(pth->in);
 
   /** Assign initial vales */
   headlines = 0;
@@ -2207,9 +2222,24 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   psd->DH_dist_size = index_DH-1; // subtract one because not including redshift
   // psd->DH_dist_file_name = "/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/DH_interface/tmp_distortions_CLASSformat.txt";
   /** Open file */
-  // class_open(DH_input, psd->DH_dist_file_name, "r", psd->error_message);
-  class_open(DH_input,pth->DH_dist_file_name  , "r", psd->error_message);
+  // class_open(DH_input, pth->DH_dist_file_name, "r", psd->error_message);
+  // printf("here!!\n");
+  if(psd->run_DarkAges_with_distortions){
+    strcat(pin->command_fz," --print_spectral_distortion");
 
+    if (pth->thermodynamics_verbose > 0) {
+      printf(" -> running: %s\n", pin->command_fz);
+    }
+    fflush(DH_input);
+
+    system(pin->command_fz);
+    class_sprintf(pth->DH_dist_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
+
+    class_open(DH_input, pth->DH_dist_file_name, "r", pth->error_message);
+    class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
+  }else{
+    class_open(DH_input,pth->DH_dist_file_name  , "r", psd->error_message);
+  }
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
     headlines++;
@@ -2232,7 +2262,6 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
                  psd->error_message,
                  "could not read the initial integer of number of lines in line %i in file '%s' \n",
                  headlines,pth->DH_dist_file_name);
-
       /* (z, f, ddf)*/
       class_alloc(psd->DH_dist_table,
                   3*psd->DH_eng_size*sizeof(double),

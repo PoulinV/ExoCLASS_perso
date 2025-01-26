@@ -348,7 +348,7 @@ def compute_distortions(fnames, spectral_distortions,mass,  t_dec=np.inf,zh=1.,f
             redshift = spectral_distortions.z_injected
             model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
             distortions=  np.zeros( shape=(len(spectral_distortions.frequency),), dtype=np.float64 )
-            distortions[:]= spectral_distortion_today(spectral_distortions.frequency,spectral_distortions.z_injected,spectral_distortions.E_injected,spectral_distortions.spectral_distortions_phot,
+            distortions[:]= spectral_distortion_today(spectral_distortions.frequency,spectral_distortions.z_injected,model.logEnergies,spectral_distortions.E_injected,spectral_distortions.spectral_distortions_phot,
             spectral_distortions.spectral_distortions_elec,model.spec_electrons,model.spec_photons, sigmav=sigmav,t_dec=t_dec,n_cdm=n_cdm,hist=hist,normalization=model.normalization,  **DarkOptions)
             spectral_distortions_finalize(spectral_distortions.frequency,distortions,**DarkOptions)
 
@@ -399,6 +399,7 @@ def spec_elec_and_phot(fnames,mass,  logEnergies=None, redshift=None, t_dec=np.i
             spectra = np.empty(shape=(3,1,len(fnames)), dtype=np.float64)
             if hist == 'decay':
                 logEnergies = np.ones((1,))*np.log10(1e9*0.5*mass)
+                # print(logEnergies)
             elif hist == 'annihilation' or hist =='annihilation_halos':
                 logEnergies = np.ones((1,))*np.log10(1e9*mass)
             else:
@@ -411,7 +412,7 @@ def spec_elec_and_phot(fnames,mass,  logEnergies=None, redshift=None, t_dec=np.i
                 else:
                     raise DarkAgesError('I could not interpret the spectrum-input >>{0}<< in combination with dirac-like injection spectra.'.format(fname))
             tot_spec = np.tensordot(spectra, branchings, axes=(2,0))
-
+            # print(tot_spec)
 
     	# print(tot_spec[0], tot_spec[1], tot_spec[2])
     	if hist == 'decay':

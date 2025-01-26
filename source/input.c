@@ -5893,6 +5893,16 @@ int input_read_parameters_distortions(struct file_content * pfc,
     psd->z_output_sd = 0;
   }
 
+  class_call(parser_read_string(pfc,"compute_SD_with_DarkAges",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+
+  if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+      psd->run_DarkAges_with_distortions = _TRUE_;
+  }else{
+    psd->run_DarkAges_with_distortions = _FALSE_;
+  }
+
 
   return _SUCCESS_;
 

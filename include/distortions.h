@@ -193,6 +193,7 @@ struct distortions
   char output_sd_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output SD at highz */
   char output_heat_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output heating term at highz */
   short output_sd_at_highz; /**< Do we output at highz? default= no unless user require to use DarkHistory */
+  short run_DarkAges_with_distortions; /**< Do we compute SD with DarkAges? */
   //@}
 
 };

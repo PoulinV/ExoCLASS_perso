@@ -113,7 +113,7 @@ def spectral_distortions_load(infile):
 	#else:
 	return loaded_spectral_distortions
 
-def spectral_distortion_today(frequency,z_injected, E_injected,spectral_distortions_phot,spectral_distortions_elec,spec_elec, spec_phot,hist,normalization, sigmav=3e-26,t_dec=np.inf,n_cdm=0,**DarkOptions):
+def spectral_distortion_today(frequency,z_injected, E_injected,transfer_functions_E,spectral_distortions_phot,spectral_distortions_elec,spec_elec, spec_phot,hist,normalization, sigmav=3e-26,t_dec=np.inf,n_cdm=0,**DarkOptions):
     # u"""Returns the effective efficiency factor :math:`f_c (z)`
     # for the deposition channel :math:`c`.
     #
@@ -141,8 +141,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,spectral_distorti
     # :obj:`array-like`
     # 	Array (:code:`shape = (k)`) of :math:`E0dNdE0dV0` at the frequency today given in :code:`frequency`
     # """
-    E = E_injected
-    print(E)
+    E = 10**(E_injected)
+    #PROBLEME WITH E: should feed the injected particle energy AND the energy of the transfer function table separately.
     how_to_integrate = DarkOptions.get('E_integration_scheme','energy')
     if how_to_integrate not in ['logE','energy']:
         from .__init__ import DarkAgesError
@@ -150,69 +150,80 @@ def spectral_distortion_today(frequency,z_injected, E_injected,spectral_distorti
     if len(E) == 1: how_to_integrate = 'energy' # Handling of a dirac-spectrum is inside the integration part w.r.t energy
     # norm = ( conversion(z_dep,alpha=alpha) )*( normalization )
 
-    # if (len(log10E) == len(transfer_functions_log10E)):
-    # 	if np.any(abs(log10E - transfer_functions_log10E) <= 1e-9*log10E):
-    # 		need_to_interpolate = False
-    # 	else:
-    # 		need_to_interpolate = True
-    # else:
-    # 	need_to_interpolate = True
-    need_to_interpolate = False
+    if (len(E_injected) == len(transfer_functions_E)):
+    	if np.any(abs(log10E - transfer_functions_log10E) <= 1e-9*log10E):
+    		need_to_interpolate = False
+    	else:
+    		from .common import evaluate_spectral_distortion_transfer
+    		need_to_interpolate = True
+    else:
+    	from .common import evaluate_spectral_distortion_transfer
+    	need_to_interpolate = True
+    # need_to_interpolate = False
     energy_integral = np.zeros( shape=(len(frequency),len(z_injected)), dtype=np.float64)
-    Enj = E #for now Enj and E are identical, i.e., the injected energy matches where the transfer fnction is known. the structure is such that this could be changed in the future.
-    for i in range(len(energy_integral)): ##loop over frequency
+    Enj = transfer_functions_E
+    for i in range(len(frequency)): ##loop over frequency
         # print(frequency[i])
         if how_to_integrate == 'logE':
-            for k in range(len(energy_integral[i])): ##loop over z_inj
+            for k in range(len(z_injected)): ##loop over z_inj
                 if not need_to_interpolate:
                     # int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
                     # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
                     int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
                     int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
                 else:
-                    int_phot = evaluate_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-                    int_elec = evaluate_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
+                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
                 energy_integral[i][k] = trapz( int_phot + int_elec, log10E )
         elif how_to_integrate == 'energy':
-            for k in range(i,len(energy_integral[i])):
+            for k in range(len(z_injected)):
                 if not need_to_interpolate:
-                    # print(spectral_distortions_phot[k,i,:],spec_phot[:,k],(E[:]**1))
-                    int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**1)
-                    int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**1)
+                    # print(spectral_distortions_phot[k,i,:],spec_elec[:,k],(E[:]**1))
+                    int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]
+                    int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]
+                    # int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**1)
+                    # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**1)
                 else:
-                    int_phot = evaluate_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**1)
-                    int_elec = evaluate_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**1)
-            if len(E) > 1:
-                energy_integral[i][k] = trapz( int_phot + int_elec, E )
-            else:
-                energy_integral[i][k] = int_phot + int_elec
+                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]
+                    # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*2
+                    # int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**1)
+                    # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**1)
+                if len(E) > 1:
+                    energy_integral[i][k] = trapz( int_phot + int_elec, E )
+                else:
+                    energy_integral[i][k] = int_phot + int_elec
+                # if(energy_integral[i][k]==0):
+                    # print('nu %f, z %f, E %f, dNdE %f, jntegral %f'%(frequency[i],z_injected[k],E[:],spec_elec[:,k],energy_integral[i][k]))
+    result = np.zeros_like( frequency, dtype=np.float64)
+    result2 = np.zeros_like( frequency, dtype=np.float64)
+    rate_per_volume_per_time = np.zeros_like( z_injected, dtype=np.float64)
+    if hist=='decay':
+        rate_per_volume_per_time = n_cdm * (z_injected[:]+1)**3 / t_dec
+    if hist=='annihilation':
+        # print(DarkOptions.get('n_cdm'),z_injected[:],DarkOptions.get('sigmav'))
+        rate_per_volume_per_time = (n_cdm*(z_injected[:]+1)**3) **2 * sigmav
 
-        print(energy_integral)
-        result = np.zeros_like( frequency, dtype=np.float64)
-        rate_per_volume_per_time = np.zeros_like( z_injected, dtype=np.float64)
-        if hist=='decay':
-            rate_per_volume_per_time = n_cdm * (z_injected[:]+1)**3 / t_dec
-        if hist=='annihilation':
-            # print(DarkOptions.get('n_cdm'),z_injected[:],DarkOptions.get('sigmav'))
-            rate_per_volume_per_time = (n_cdm*(z_injected[:]+1)**3) **2 * sigmav
+    for i in range(len(result)):
+        from .common import H
+        low = 0
+        #low = i
+        # integrand = conversion(1+z_injected[:],alpha=-3) / (1 + z_injected[:]) *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
+        integrand = 1/ H(z_injected[:]) / (1 + z_injected[:])** 4 *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
+        # integrand = energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
+        # print(integrand) #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
+        result[i] = trapz( integrand, z_injected)
+        result2[i] = integrand.sum()
+# result[i] = integrand.sum()
 
-        for i in range(len(result)):
-            from .common import conversion
-            low = 0
-            #low = i
-            integrand = conversion(1+z_injected[:],alpha=-3) / (1 + z_injected[:]) *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-            # integrand = 1/ H(z_injected[:]) / (1 + z_injected[:])** 4 *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-            result[i] = trapz( integrand, z_injected)
-    # result[i] = integrand.sum()
-
-    # result = np.empty_like( norm, dtype=np.float64 )
+# result = np.empty_like( norm, dtype=np.float64 )
     # try:
-        for i in range(len(normalization)):
-            if normalization[i] != 0 and abs(result[i]) < np.inf :
-                result[i] /= normalization[i]
-            else:
-                #result[i] = np.nan
-                result[i] = 0.
+    #     for i in range(len(normalization)):
+    #         if normalization[i] != 0 and abs(result[i]) < np.inf :
+    #             result[i] /= normalization[i]
+    #         else:
+    #             #result[i] = np.nan
+    #             result[i] = 0.
     # except TypeError:
     #     if normalization != 0 and abs(result[i]) < np.inf :
     #         result[i] /= normalization
@@ -220,7 +231,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,spectral_distorti
     #         #result[i] = np.nan
     #         result[i] = 0.
 
-        return result
+    # print(frequency,result,result2)
+    return result2/1e16
 
 def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions):
     u"""Prints the table of redshift and :math:`f_eff(z)` into :obj:`stdout`
@@ -257,12 +269,24 @@ def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions)
     last = len(frequency) - last_idx
     min_nu = DarkOptions.get('lower_E_bound',0.) ##to be updated
     max_nu = DarkOptions.get('upper_E_bound',5.01e6)
-    sys.stdout.write(50*'#'+'\n')
-    sys.stdout.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
-    sys.stdout.write(50*'#'+'\n\n')
-    sys.stdout.write('#nu\t SI\n\n{:d}\n\n'.format( (last-first) + 2))
-    # sys.stdout.write('{:.2e}\t{:.4e}\n'.format(min_nu,spectral_distortions[first]))
+    #
+    # sys.stdout.write(50*'#'+'\n')
+    # sys.stdout.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
+    # sys.stdout.write(50*'#'+'\n\n')
+    # sys.stdout.write('#nu\t SI\n\n{:d}\n\n'.format( (last-first)))
+    # # sys.stdout.write('{:.2e}\t{:.4e}\n'.format(min_nu,spectral_distortions[first]))
+    # for idx in range(len(frequency)):
+    # # for idx in range(first,last):
+    #     sys.stdout.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
+    # # sys.stdout.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
+    f = open('DarkAgesModule/output_DarkAges_dist.tmp.dat','wt')
+    f.write(50*'#'+'\n')
+    f.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
+    f.write(50*'#'+'\n\n')
+    f.write('# 1:Frequency nu [GHz]     2:SD_tot\n\n{:d}\n\n'.format( (last-first)))
+    # f.write('{:.2e}\t{:.4e}\n'.format(min_nu,spectral_distortions[first]))
     for idx in range(len(frequency)):
     # for idx in range(first,last):
-        sys.stdout.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
-    # sys.stdout.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
+        f.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
+    # f.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
+    f.close()
