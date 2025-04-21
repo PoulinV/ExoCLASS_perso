@@ -61,7 +61,6 @@ int distortions_init(struct precision * ppr,
     pth->run_DH_with_SD = _TRUE_;
     psd->loop_over_CLASS_for_DH = 1;
   }
-
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
     //this step is mandatory when running DH with SD during the first iteration of the code.
     psd->output_sd_at_highz = _TRUE_;
@@ -1642,6 +1641,12 @@ int distortions_interpolate_br_data(struct distortions* psd,
   int index_k;
   double h,a,b;
   /** Find z position */
+  // // printf("z = %g,psd->br_exact_z[0] %e\n",z,psd->br_exact_z[0]);
+  // if(z<psd->br_exact_z[0]){
+  //   z=psd->br_exact_z[0];
+  // }
+  z+=1e-5;//VP: added to avoid bug, sometimes z is slightly below psd->br_exact_z[0];
+  // printf("z = %g,psd->br_exact_z[0] %e\n",z,psd->br_exact_z[0]);
   class_call(array_spline_hunt(psd->br_exact_z,
                                psd->br_exact_Nz,
                                z,

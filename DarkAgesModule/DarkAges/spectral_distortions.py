@@ -232,7 +232,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     #         result[i] = 0.
 
     # print(frequency,result,result2)
-    return result2/1e16
+    return result2/1e16*1e26
+    # return result2
 
 def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions):
     u"""Prints the table of redshift and :math:`f_eff(z)` into :obj:`stdout`
