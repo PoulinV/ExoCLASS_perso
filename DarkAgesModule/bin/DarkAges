@@ -72,10 +72,13 @@ parser.add_option("--log10mass", type="float", dest='log10mass',default=None,
                   help="Define the log10 of the mass of the DM-candidate [mass in GeV].")
 parser.add_option("--tdec", type='float', dest='t_dec',
                   help="Define the lifetime of the DM-candidate.")
+<<<<<<< HEAD
 parser.add_option("--sigmav", type='float', dest='sigmav',
                   help="annihilation cross section in cm^3 s^-1.")
 parser.add_option("--n_cdm", type='float', dest='n_cdm',
                   help="n_cdm number density of (decaying or annihilating) dark matter at initial times (matches the z=0 abundance if decays or annihilation are very innefficient)")
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
 parser.add_option("--zh", type='float', dest='zh',
                   help="Define the onset of halos formation.")
 parser.add_option("--fh", type='float', dest='fh',
@@ -88,8 +91,11 @@ parser.add_option("--nuke-and-start-again", action='store_true', dest='nuke', de
                   help="Delete all preprocessed *.obj-files (transfer-functions, dumped interpolators, models, etc.) and start from scratch")
 parser.add_option("--return_f_eff_table", action='store_true', dest='return_feff', default=False,
                   help="Print f(z) summed over all deposition channels (with corrections) instead of each channel")
+<<<<<<< HEAD
 parser.add_option("--print_spectral_distortion", action='store_true', dest='print_spectral_distortion', default=False,
                   help="Print spectral distortions today from all channels")
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
 
 (options, args) = parser.parse_args()
 if len(args) == 0:
@@ -121,7 +127,11 @@ if options.specfile is not None:
 	options.spectrum = options.specfile
 	options.specfile = None
 
+<<<<<<< HEAD
 from DarkAges.__init__ import transfer_functions,spectral_distortions_functions, get_logEnergies, set_logEnergies, get_redshift, DarkAgesError, print_info, set_background, get_background
+=======
+from DarkAges.__init__ import transfer_functions, get_logEnergies, set_logEnergies, get_redshift, DarkAgesError, print_info, set_background, get_background
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
 import DarkAges.recipes as recipes
 
 set_background(*options.background)
@@ -195,8 +205,11 @@ if options.mass <= 0:
 # If the option is already set via the YAML input the command-line input is ignored.
 if "print_f_eff" not in DarkOptions:
 	DarkOptions.update({"print_f_eff":options.return_feff})
+<<<<<<< HEAD
 if "print_spectral_distortion" not in DarkOptions:
 	DarkOptions.update({"print_spectral_distortion":options.print_spectral_distortion})
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
 
 if options.injection_history == 'evaporating_PBH':
 	sys.exit( recipes.evaporating_PBH(options.mass, transfer_functions, **DarkOptions) )
@@ -219,7 +232,12 @@ if options.spectrum is not None:
 		assert len(options.spectrum) == len(options.branchings)
 	except AssertionError:
 		raise DarkAgesError('The number of spectra (== {:d}) and the number of branching ratios (== {:d}) do not match'.format(len(options.spectrum),len(options.branchings)))
+<<<<<<< HEAD
 	if options.print_spectral_distortion:
 		sys.exit( recipes.compute_distortions(options.spectrum, spectral_distortions_functions, options.mass, t_dec=options.t_dec, zh=options.zh, fh=options.fh,sigmav=options.sigmav,n_cdm=options.n_cdm, hist=options.injection_history, branchings=options.branchings, **DarkOptions) )
 	else:
 		sys.exit( recipes.loading_from_specfiles(options.spectrum, transfer_functions, spectral_distortions_functions, options.mass, t_dec=options.t_dec, zh=options.zh, fh=options.fh,sigmav=options.sigmav,n_cdm=options.n_cdm, hist=options.injection_history, branchings=options.branchings, **DarkOptions) )
+=======
+
+	sys.exit( recipes.loading_from_specfiles(options.spectrum, transfer_functions, options.mass, t_dec=options.t_dec, zh=options.zh, fh=options.fh, hist=options.injection_history, branchings=options.branchings, **DarkOptions) )
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460

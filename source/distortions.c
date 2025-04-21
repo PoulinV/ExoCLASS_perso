@@ -56,11 +56,14 @@ int distortions_init(struct precision * ppr,
                psd->error_message);
   }
 
+<<<<<<< HEAD
   if(psd->run_DarkAges_with_distortions == _TRUE_){
     //if we run with DarkAges module, automatically go to step 2 of the DH calculation.
     pth->run_DH_with_SD = _TRUE_;
     psd->loop_over_CLASS_for_DH = 1;
   }
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
     //this step is mandatory when running DH with SD during the first iteration of the code.
     psd->output_sd_at_highz = _TRUE_;
@@ -74,8 +77,11 @@ int distortions_init(struct precision * ppr,
              psd->error_message,
              psd->error_message);
   }
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
   // class_call(injection_read_DH_distortions_from_file(psd),
   //          psd->error_message,
   //          psd->error_message);
@@ -930,7 +936,11 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
   int last_index = 0;
   int index_type, index_x, index_k;
   double sum_S, sum_G;
+<<<<<<< HEAD
   double x,g;
+=======
+  double g;
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
   double y_reio, DI_reio;
 
   /** Allocate space for spectral distortion amplitude in table sd_parameter_table */
@@ -1088,10 +1098,15 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
       psd->DI[index_x] += psd->sd_table[index_type][index_x];
     }
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
     if(psd->loop_over_CLASS_for_DH == 1 && pth->run_DH_with_SD == _TRUE_){
       //this means we are using DH to compute distortions. Now add in those distortions.
       //overwrite the SD from CLASS to avoid double counting. SD from z > 3000 are computed in CLASS, and then passed to DH.
       for (index_x=0;index_x<psd->x_size;++index_x){
+<<<<<<< HEAD
                 if(psd->run_DarkAges_with_distortions == _TRUE_){
                   x=psd->x[index_x]*psd->x_to_nu;
                 }
@@ -1107,13 +1122,27 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
 
                 }else{
 
+=======
+                //simple extrapolation as 0 (i.e. no distortion) outside of the range computed by DH.
+                if(psd->x[index_x] > psd->DH_dist_table[3*(psd->DH_eng_size-1)]){
+                  psd->DI[index_x] = 0;
+                }
+                else if(psd->x[index_x] < psd->DH_dist_table[0]){
+                  psd->DI[index_x] = 0;
+
+                }else{
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
                   class_call(array_interpolate_spline_transposed(psd->DH_dist_table,
                                                           psd->DH_eng_size,
                                                           3,
                                                           0,
                                                           1,
                                                           2,
+<<<<<<< HEAD
                                                           x,
+=======
+                                                          psd->x[index_x],
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
                                                           &last_index,
                                                           &(psd->DI[index_x]),
                                                           psd->error_message),
@@ -1641,12 +1670,15 @@ int distortions_interpolate_br_data(struct distortions* psd,
   int index_k;
   double h,a,b;
   /** Find z position */
+<<<<<<< HEAD
   // // printf("z = %g,psd->br_exact_z[0] %e\n",z,psd->br_exact_z[0]);
   // if(z<psd->br_exact_z[0]){
   //   z=psd->br_exact_z[0];
   // }
   z+=1e-5;//VP: added to avoid bug, sometimes z is slightly below psd->br_exact_z[0];
   // printf("z = %g,psd->br_exact_z[0] %e\n",z,psd->br_exact_z[0]);
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
   class_call(array_spline_hunt(psd->br_exact_z,
                                psd->br_exact_Nz,
                                z,
@@ -2215,7 +2247,10 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   char line[_LINE_LENGTH_MAX_];
   char * left;
   int headlines, index_DH, index_eng, index_psd;
+<<<<<<< HEAD
   struct injection* pin = &(pth->in);
+=======
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
 
   /** Assign initial vales */
   headlines = 0;
@@ -2227,6 +2262,7 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   psd->DH_dist_size = index_DH-1; // subtract one because not including redshift
   // psd->DH_dist_file_name = "/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/DH_interface/tmp_distortions_CLASSformat.txt";
   /** Open file */
+<<<<<<< HEAD
   // class_open(DH_input, pth->DH_dist_file_name, "r", psd->error_message);
   // printf("here!!\n");
   if(psd->run_DarkAges_with_distortions){
@@ -2245,6 +2281,11 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   }else{
     class_open(DH_input,pth->DH_dist_file_name  , "r", psd->error_message);
   }
+=======
+  // class_open(DH_input, psd->DH_dist_file_name, "r", psd->error_message);
+  class_open(DH_input,pth->DH_dist_file_name  , "r", psd->error_message);
+
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
     headlines++;
@@ -2267,6 +2308,10 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
                  psd->error_message,
                  "could not read the initial integer of number of lines in line %i in file '%s' \n",
                  headlines,pth->DH_dist_file_name);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2cca0f87c5530748cfa90e8dfec4d11e4a993460
       /* (z, f, ddf)*/
       class_alloc(psd->DH_dist_table,
                   3*psd->DH_eng_size*sizeof(double),
