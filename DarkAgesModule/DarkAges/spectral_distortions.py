@@ -142,6 +142,10 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     # 	Array (:code:`shape = (k)`) of :math:`E0dNdE0dV0` at the frequency today given in :code:`frequency`
     # """
     E = 10**(E_injected)
+    dlogz = np.diff(np.log(z_injected))
+    # print(dz,z_injected)
+    # dlogz = np.append(dz, dz[0])
+
     #PROBLEME WITH E: should feed the injected particle energy AND the energy of the transfer function table separately.
     how_to_integrate = DarkOptions.get('E_integration_scheme','energy')
     if how_to_integrate not in ['logE','energy']:
@@ -184,8 +188,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
                     # int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**1)
                     # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**1)
                 else:
-                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]
-                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]
+                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]/2
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]/2
                     # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*2
                     # int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**1)
                     # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**1)
@@ -203,16 +207,16 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     if hist=='annihilation':
         # print(DarkOptions.get('n_cdm'),z_injected[:],DarkOptions.get('sigmav'))
         rate_per_volume_per_time = (n_cdm*(z_injected[:]+1)**3) **2 * sigmav
-
     for i in range(len(result)):
         from .common import H
         low = 0
+        # print(frequency[i]*4.135667696e-15)
         #low = i
         # integrand = conversion(1+z_injected[:],alpha=-3) / (1 + z_injected[:]) *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-        integrand = 1/ H(z_injected[:]) / (1 + z_injected[:])** 4 *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
+        integrand = dlogz[0]/ H(z_injected[:]) / (1 + z_injected[:])** 3 *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
         # integrand = energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
         # print(integrand) #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-        result[i] = trapz( integrand, z_injected)
+        # result[i] = trapz( integrand, z_injected)
         result2[i] = integrand.sum()
 # result[i] = integrand.sum()
 
@@ -232,6 +236,7 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     #         result[i] = 0.
 
     # print(frequency,result,result2)
+    # print(z_injected)
     return result2/1e16*1e26
     # return result2
 

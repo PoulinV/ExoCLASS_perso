@@ -1094,12 +1094,12 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
       //this means we are using DH to compute distortions. Now add in those distortions.
       //overwrite the SD from CLASS to avoid double counting. SD from z > 3000 are computed in CLASS, and then passed to DH.
       for (index_x=0;index_x<psd->x_size;++index_x){
-                if(psd->run_DarkAges_with_distortions == _TRUE_){
+                // if(psd->run_DarkAges_with_distortions == _TRUE_){
                   x=psd->x[index_x]*psd->x_to_nu;
-                }
-                else{
-                  x=psd->x[index_x];
-                }
+                // }
+                // else{
+                //   x=psd->x[index_x];
+                // }
                 //simple extrapolation as 0 (i.e. no distortion) outside of the range computed by DH.
                 if(x > psd->DH_dist_table[3*(psd->DH_eng_size-1)]){
                   psd->DI[index_x] = 0;

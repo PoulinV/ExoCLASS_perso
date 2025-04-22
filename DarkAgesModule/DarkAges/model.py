@@ -293,7 +293,6 @@ class decaying_model(model):
 
 		spec_electrons = np.vectorize(_decay_scaling).__call__(redshift[None,:], ref_el_spec[:,None], t_dec)
 		spec_photons = np.vectorize(_decay_scaling).__call__(redshift[None,:], ref_ph_spec[:,None], t_dec)
-		# print(ref_el_spec[:,None],ref_ph_spec[:,None])
 
 		model.__init__(self, spec_electrons, spec_photons, normalization, logEnergies,0)
 
