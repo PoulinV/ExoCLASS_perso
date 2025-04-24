@@ -189,11 +189,17 @@ struct distortions
   double* DH_dist_table; // table to store thermodynamics history
   int DH_eng_size; // number of lines read into table
   int DH_dist_size; // number of thermodynamics quantities. Usually 3 for xe, Tmat, and dTmat
+  double* DH_SMresiduals_table; // table to store thermodynamics history
+  int DH_SMresiduals_eng_size; // number of lines read into table
+  int DH_SMresiduals_size; // number of thermodynamics quantities. Usually 3 for xe, Tmat, and dTmat
+  int index_DH_SMresiduals_dNdE;
   int index_DH_dNdE;
   int loop_over_CLASS_for_DH;
+  int include_DH_SMresidual_distortions;
   double z_output_sd;                           /**< Redshift at which we output; default = 3000 */
   char output_sd_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output SD at highz */
   char output_heat_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output heating term at highz */
+  char DH_SMresiduals_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH SM residual distortions as input
   short output_sd_at_highz; /**< Do we output at highz? default= no unless user require to use DarkHistory */
   short run_DarkAges_with_distortions; /**< Do we compute SD with DarkAges? */
   int add_SD_to_CLASS;                             /**< do we add DarkAges or DarkHistory SD to the CLASS output or overwrite it? */

@@ -1138,6 +1138,44 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
                 }
           }
   }
+    if(psd->include_DH_SMresidual_distortions == _TRUE_){
+      // psd->add_SD_to_CLASS  = _FALSE_;
+      //this means we are using DH to compute distortions. Now add in those distortions.
+      for (index_x=0;index_x<psd->x_size;++index_x){
+                // if(psd->run_DarkAges_with_distortions == _TRUE_){
+                  x=psd->x[index_x]*psd->x_to_nu;
+                // }
+                // else{
+                //   x=psd->x[index_x];
+                // }
+                //simple extrapolation as 0 (i.e. no distortion) outside of the range computed by DH.
+                if(x > psd->DH_SMresiduals_table[3*(psd->DH_SMresiduals_eng_size-1)]){
+                  DH_distortion = 0;
+                }
+                else if(x < psd->DH_SMresiduals_table[0]){
+                  DH_distortion = 0;
+
+                }else{
+
+
+                  class_call(array_interpolate_spline_transposed(psd->DH_SMresiduals_table,
+                                                          psd->DH_SMresiduals_eng_size,
+                                                          3,
+                                                          0,
+                                                          1,
+                                                          2,
+                                                          x,
+                                                          &last_index,
+                                                          &(DH_distortion),
+                                                          psd->error_message),
+                      psd->error_message,
+                      psd->error_message);
+                    // printf("%s\n", );
+                    DH_distortion /= psd->DI_units;
+                }
+                  psd->DI[index_x] += DH_distortion;
+          }
+  }
   /** Include additional sources of distortions */
   /* Superposition of blackbodies */
   //psd->sd_parameter_table[psd->index_type_y] += 2.525e-7;   // CMB Dipole (Chluba & Sunyaev 2004)
@@ -2321,6 +2359,109 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
                             psd->error_message),
               psd->error_message,
               psd->error_message);
+  }
+
+
+
+  if(psd->include_DH_SMresidual_distortions == _TRUE_){
+
+
+
+      /** Assign initial vales */
+      headlines = 0;
+      psd->DH_SMresiduals_eng_size = 0;
+
+      /** Define indices for DarkHistory table */
+      index_DH = 1; // start at 1 because skipping redshift at index 0
+      class_define_index(psd->index_DH_SMresiduals_dNdE,_TRUE_,index_DH,1);
+      psd->DH_SMresiduals_size = index_DH-1; // subtract one because not including redshift
+      // psd->DH_dist_file_name = "/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/DH_interface/tmp_distortions_CLASSformat.txt";
+      /** Open file */
+      // class_open(DH_input, pth->DH_dist_file_name, "r", psd->error_message);
+      // printf("here!!\n");
+      // if(psd->run_DarkAges_with_distortions){
+      //   strcat(pin->command_fz," --print_spectral_distortion");
+      //
+      //   if (pth->thermodynamics_verbose > 0) {
+      //     printf(" -> running: %s\n", pin->command_fz);
+      //   }
+      //   fflush(DH_input);
+      //
+      //   system(pin->command_fz);
+      //   class_sprintf(pth->DH_dist_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
+      //
+      //   class_open(DH_input, pth->DH_dist_file_name, "r", pth->error_message);
+      //   class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
+      // }else{
+        class_open(DH_input,psd->DH_SMresiduals_file_name  , "r", psd->error_message);
+      // }
+
+
+      while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
+        headlines++;
+
+        /* Eliminate blank spaces at beginning of line */
+        left=line;
+        while (left[0]==' ') {
+          left++;
+        }
+
+        /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
+           be the beginning of some data (it is not a newline, a #, a %, etc.) */
+        if (left[0] > 39) {
+
+          /* If the line contains data, we must interprete it. If num_lines == 0 , the current line must contain
+             its value. Otherwise, it must contain (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE). */
+
+          /* Read num_lines, infer size of arrays and allocate them */
+          class_test(sscanf(line,"%d",&(psd->DH_SMresiduals_eng_size)) != 1,
+                     psd->error_message,
+                     "could not read the initial integer of number of lines in line %i in file '%s' \n",
+                     headlines,psd->DH_SMresiduals_file_name);
+
+          /* (z, f, ddf)*/
+          class_alloc(psd->DH_SMresiduals_table,
+                      3*psd->DH_SMresiduals_eng_size*sizeof(double),
+                      psd->error_message);
+
+          break;
+        }
+      }
+
+      /** - Read file */
+      for(index_eng=0;index_eng<psd->DH_SMresiduals_eng_size;++index_eng){
+        /* Read coefficients */
+        class_test(fscanf(DH_input,"%lg %lg",
+                          &(psd->DH_SMresiduals_table[index_eng*3+0]),  // eng
+                          &(psd->DH_SMresiduals_table[index_eng*3+1])  // dNdE
+                         ) != 2,
+                   psd->error_message,
+                   "could not read value of parameters coefficients in line %i in file '%s'\n",
+                   headlines,psd->DH_SMresiduals_file_name);
+      }
+
+      fclose(DH_input);
+
+
+
+
+      /** - Spline file contents */
+      /* Spline in one dimension */
+      for(index_psd=0;index_psd<psd->DH_SMresiduals_size;++index_psd){
+        class_call(array_spline(psd->DH_SMresiduals_table,
+                                2*psd->DH_SMresiduals_size+1,
+                                psd->DH_SMresiduals_eng_size,
+                                0,
+                                1+index_psd,
+                                1+index_psd+psd->DH_SMresiduals_size,
+                                _SPLINE_NATURAL_,
+                                psd->error_message),
+                  psd->error_message,
+                  psd->error_message);
+      }
+
+
+
   }
 
   return _SUCCESS_;

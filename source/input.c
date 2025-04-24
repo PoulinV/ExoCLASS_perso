@@ -5912,6 +5912,16 @@ int input_read_parameters_distortions(struct file_content * pfc,
   }else{
     psd->run_DarkAges_with_distortions = _FALSE_;
   }
+  class_call(parser_read_string(pfc,"include_DH_SMresidual_distortions",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+
+  if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+      psd->include_DH_SMresidual_distortions = _TRUE_;
+      strcat(psd->DH_SMresiduals_file_name,"./DH_interface/baseline_nmax200_exclude_y.txt");
+  }else{
+    psd->include_DH_SMresidual_distortions = _FALSE_;
+  }
   //uncomment to have control on that flag. Not necessary for now.
   // class_call(parser_read_string(pfc,"add_SD_to_CLASS",&string1,&flag1,errmsg),
   //            errmsg,
