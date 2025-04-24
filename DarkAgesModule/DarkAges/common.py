@@ -251,6 +251,7 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 					energy_integral[i][k] = trapz( int_phot + int_elec, E )
 				else:
 					energy_integral[i][k] = int_phot + int_elec
+
 	z_integral = np.zeros_like( z_dep, dtype=np.float64)
 	dummy = np.arange(1,len(z_inj)+1)
 	for i in range(len(z_integral)):

@@ -60,12 +60,14 @@ int distortions_init(struct precision * ppr,
     //if we run with DarkAges module, automatically go to step 2 of the DH calculation.
     pth->run_DH_with_SD = _TRUE_;
     psd->loop_over_CLASS_for_DH = 1;
+    psd->add_SD_to_CLASS = _TRUE_; //by default, DarkAges compute the "residual distortion". We add that to the CLASS output.
   }
 
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
     //this step is mandatory when running DH with SD during the first iteration of the code.
     psd->output_sd_at_highz = _TRUE_;
     psd->z_output_sd = 3000; //update to default value.
+    psd->add_SD_to_CLASS = _FALSE_; //with DH we compute the full distortions starting from what CLASS has computed down to z=3000. We thus overwrite the output of CLASS instead of adding to it
   }
   else if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 1){
     //We have already output the file! no need to do it again.
@@ -827,6 +829,8 @@ int distortions_compute_heating_rate(struct precision* ppr,
   double H, a, rho_g;
 
   if (psd->include_only_exotic == _FALSE_) {
+    pni->include_adiabatic_cooling=psd->include_adiabatic_cooling;
+    pni->include_acoustic_dissipation=psd->include_acoustic_dissipation;
     /** Update heating table with second order contributions */
     class_call(noninjection_init(ppr,pba,pth,ppt,ppm,pni),
                pni->error_message,
@@ -846,7 +850,6 @@ int distortions_compute_heating_rate(struct precision* ppr,
 
   /* Loop over z and calculate the heating at each point */
   for (index_z=0; index_z<psd->z_size; ++index_z){
-
     if(psd->z[index_z] < psd->z_output_sd){
       //ignore distortions if z < z_min; useful to compute the distortions created by injection up to a given z.
       psd->dQrho_dz_tot[index_z] = 0;
@@ -931,6 +934,7 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
   int index_type, index_x, index_k;
   double sum_S, sum_G;
   double x,g;
+  double DH_distortion;
 
   double y_reio, DI_reio;
 
@@ -1091,8 +1095,8 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
   }
 
     if(psd->loop_over_CLASS_for_DH == 1 && pth->run_DH_with_SD == _TRUE_){
+      // psd->add_SD_to_CLASS  = _FALSE_;
       //this means we are using DH to compute distortions. Now add in those distortions.
-      //overwrite the SD from CLASS to avoid double counting. SD from z > 3000 are computed in CLASS, and then passed to DH.
       for (index_x=0;index_x<psd->x_size;++index_x){
                 // if(psd->run_DarkAges_with_distortions == _TRUE_){
                   x=psd->x[index_x]*psd->x_to_nu;
@@ -1102,10 +1106,10 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
                 // }
                 //simple extrapolation as 0 (i.e. no distortion) outside of the range computed by DH.
                 if(x > psd->DH_dist_table[3*(psd->DH_eng_size-1)]){
-                  psd->DI[index_x] = 0;
+                  DH_distortion = 0;
                 }
                 else if(x < psd->DH_dist_table[0]){
-                  psd->DI[index_x] = 0;
+                  DH_distortion = 0;
 
                 }else{
 
@@ -1117,15 +1121,22 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
                                                           2,
                                                           x,
                                                           &last_index,
-                                                          &(psd->DI[index_x]),
+                                                          &(DH_distortion),
                                                           psd->error_message),
                       psd->error_message,
                       psd->error_message);
-                    psd->DI[index_x] /= (1e26*psd->DI_units);
+                    DH_distortion /= (1e26*psd->DI_units);
                 }
 
-
-    }
+                if(psd->add_SD_to_CLASS == _TRUE_){
+                  //default for DarkAges: what is computed  is the residual distortion, we add it to the CLASS computation.
+                  psd->DI[index_x] += DH_distortion;
+                }
+                else{
+                  //default for DarkHistory: what is computed  is the total distortions, using the input from CLASS at z=3000. We overwrite CLASS computation.
+                  psd->DI[index_x] = DH_distortion;
+                }
+          }
   }
   /** Include additional sources of distortions */
   /* Superposition of blackbodies */
@@ -1643,7 +1654,6 @@ int distortions_interpolate_br_data(struct distortions* psd,
   int index_k;
   double h,a,b;
   /** Find z position */
-  // // printf("z = %g,psd->br_exact_z[0] %e\n",z,psd->br_exact_z[0]);
   // if(z<psd->br_exact_z[0]){
   //   z=psd->br_exact_z[0];
   // }

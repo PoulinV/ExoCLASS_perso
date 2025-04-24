@@ -188,26 +188,31 @@ int noninjection_init(struct precision* ppr,
     pni->dkD_dz = 1./(pvecback[pba->index_bg_H]*dkappa)*(16./15.+pow(R,2.)/(1.+R))/(6.*(1.0+R));    // [Mpc^2]
     pni->kD = 2.*_PI_/pvecthermo[pth->index_th_r_d];                                                // [1/Mpc]
     pni->T_b = pvecthermo[pth->index_th_Tb];                                                        // [K]
+    pni->dT_b = -pvecthermo[pth->index_th_dTb]*pni->H/pni->a ;                                       // [K] //derivative with respect to time.
     pni->T_g = pni->T_g0/pni->a;                                                                    // [K]
     pni->x_e = pvecthermo[pth->index_th_xe];                                                        // [-]
     pni->heat_capacity = (3./2.)*_k_B_*pni->nH*(1.+pni->fHe+pni->x_e);                              // [J/(K m^3)]
 
     /* Include all non-injected energy that does not need to be deposited (i.e. adiabatic terms as below) */
     /* First order cooling of photons due to adiabatic interaction with baryons */
-    class_call(noninjection_rate_adiabatic_cooling(pni,
-                                                   z_coarse,
-                                                   &dEdt),
-               pni->error_message,
-               pni->error_message);
-    pni->noninjection_table[index_z]+=dEdt;
+    if(pni->include_adiabatic_cooling == _TRUE_){
+      class_call(noninjection_rate_adiabatic_cooling(pni,
+                                                     z_coarse,
+                                                     &dEdt),
+                 pni->error_message,
+                 pni->error_message);
+      pni->noninjection_table[index_z]+=dEdt;
+    }
 
     /* Second order acoustic dissipation of BAO */
-    class_call(noninjection_rate_acoustic_diss(pni,
-                                               z_coarse,
-                                               &dEdt),
-               pni->error_message,
-               pni->error_message);
-    pni->noninjection_table[index_z]+=dEdt;
+    if(pni->include_acoustic_dissipation == _TRUE_){
+        class_call(noninjection_rate_acoustic_diss(pni,
+                                                   z_coarse,
+                                                   &dEdt),
+                   pni->error_message,
+                   pni->error_message);
+        pni->noninjection_table[index_z]+=dEdt;
+    }
   }
 
   /** - Spline coarse z table in view of interpolation */
@@ -315,7 +320,8 @@ int noninjection_rate_adiabatic_cooling(struct noninjection * pni,
                                         double * energy_rate){
 
   /** Calculate heating rates */
-  *energy_rate = -pni->heat_capacity*pni->H*pni->T_g;                                               // [J/(m^3 s)]
+  // *energy_rate = -pni->heat_capacity*pni->H*pni->T_g;                                               // [J/(m^3 s)]
+  *energy_rate = -pni->heat_capacity*(pni->dT_b+2*pni->H*pni->T_b);                                    // [J/(m^3 s)]
 
   return _SUCCESS_;
 

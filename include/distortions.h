@@ -172,6 +172,8 @@ struct distortions
   int has_SZ_effect;                        /**< do we include the SZ effect? */
 
   int include_only_exotic;                  /**< shall we only take exotic injection contributions? */
+  int include_adiabatic_cooling;            /**< shall we include adiabatic cooling? default is true.*/
+  int include_acoustic_dissipation;         /**< shall we include acoustic dissipation? default is true.*/
   int include_g_distortion;                 /**< shall we include the g distortion in the total distortion ?  */
 
   int has_noninjected;                      /**< do we have terms that are not injected (like dissipation of acoustic waves)? */
@@ -194,6 +196,7 @@ struct distortions
   char output_heat_at_highz_filename[_FILENAMESIZE_];   /**< Name of file used to output heating term at highz */
   short output_sd_at_highz; /**< Do we output at highz? default= no unless user require to use DarkHistory */
   short run_DarkAges_with_distortions; /**< Do we compute SD with DarkAges? */
+  int add_SD_to_CLASS;                             /**< do we add DarkAges or DarkHistory SD to the CLASS output or overwrite it? */
   //@}
 
 };

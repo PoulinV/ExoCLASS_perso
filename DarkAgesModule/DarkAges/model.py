@@ -269,6 +269,7 @@ class decaying_model(model):
 		def _decay_scaling(redshift, spec_point, lifetime):
 			from .common import time_at_z
 			ret = spec_point*np.exp(-time_at_z(redshift) / lifetime)
+            #check whether this exp factor should be here.
 			return ret
 
 		if logEnergies is None:

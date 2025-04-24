@@ -52,9 +52,13 @@ struct noninjection{
   double heat_capacity;
   double nH;
   double T_b;
+  double dT_b;
   double T_g;
   double x_e;
 
+  //VP: flag to include or not some effects; useful for testing purposes, default is True.
+  int include_adiabatic_cooling;
+  int include_acoustic_dissipation;
   //@}
 
   /** @name - Public tables and parameters */

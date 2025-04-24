@@ -3875,25 +3875,29 @@ int input_read_parameters_injection(struct file_content * pfc,
         flag2=_TRUE_;
         pth->DH_mode =from_file;
     class_call(parser_read_string(pfc,
-                                  "DH file name",
+                                  "DH_file_name",
                                   &(string1),
                                   &(flag1),
                                   errmsg),
                errmsg,
                errmsg);
-    strcpy(pth->DH_file_name, string1);
+    strcat(pth->DH_file_name,"./DH_interface/");
+    strcat(pth->DH_file_name, string1);
+    strcat(pth->DH_file_name,"_CLASSformat.txt");
     class_call(parser_read_string(pfc,"distort",&string2,&flag1,errmsg),
                errmsg,
                errmsg);
     if (flag1 == _TRUE_ && (string_begins_with(string2,'y') || string_begins_with(string2,'Y'))){
-      class_call(parser_read_string(pfc,
-                                    "DH distortion file name",
-                                    &(string1),
-                                    &(flag1),
-                                    errmsg),
-                 errmsg,
-                 errmsg);
-      strcpy(pth->DH_dist_file_name, string1);
+      // class_call(parser_read_string(pfc,
+      //                               "DH distortion file name",
+      //                               &(string1),
+      //                               &(flag1),
+      //                               errmsg),
+      //            errmsg,
+      //            errmsg);
+      strcat(pth->DH_dist_file_name,"./DH_interface/");
+      strcat(pth->DH_dist_file_name, string1);
+      strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
       pth->run_DH_with_SD = _TRUE_;
     }
       else{
@@ -3907,9 +3911,8 @@ int input_read_parameters_injection(struct file_content * pfc,
       strcat(pth->command_DH, "python ");
       strcat(pth->command_DH,__CLASSDIR__);
       strcat(pth->command_DH,"/DH_interface/DarkHistory/DHoneline.py ./DH_interface/ ");
-      /* Automatic comand for annihialtion without halo boost*/
       class_call(parser_read_string(pfc,
-                                    "DH file name",
+                                    "DH_file_name",
                                     &(string1),
                                     &(flag1),
                                     errmsg),
@@ -3933,11 +3936,11 @@ int input_read_parameters_injection(struct file_content * pfc,
           strcat(pth->command_DH," --sigmav ");//", help="Thermally averaged annihilation cross section in [cm^3 / s]", type=float)
           sprintf(string2,"%g",pin->DM_annihilation_cross_section);
           strcat(pth->command_DH,string2);
-          strcat(pth->command_DH," --struct_boost "); //help="Structure formation boost factor. Currently implemented models are {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs', 'erfc', 'pwave_NFW_no_subs'}, see phys.struct_boost_func for details.")
-          class_call(parser_read_string(pfc,"struct_boost",&string2,&flag1,errmsg),
-                     errmsg,
-                     errmsg);
-          strcat(pth->command_DH,string2);
+          // strcat(pth->command_DH," --struct_boost "); //help="Structure formation boost factor. Currently implemented models are {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs', 'erfc', 'pwave_NFW_no_subs'}, see phys.struct_boost_func for details.")
+          // class_call(parser_read_string(pfc,"struct_boost",&string2,&flag1,errmsg),
+          //            errmsg,
+          //            errmsg);
+          // strcat(pth->command_DH,string2);
 
       }
       if(pin->DM_decay_fraction > 0){
@@ -4189,16 +4192,21 @@ int input_read_parameters_injection(struct file_content * pfc,
     if (flag1 == _TRUE_){
       if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
 
+        // strcat(pth->command_DH," --init_distort_file DH_interface/dummyfile.dat");
+
         strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         class_call(parser_read_string(pfc,
-                                      "DH distortion file name",
+                                      "DH_file_name",
                                       &(string1),
                                       &(flag1),
                                       errmsg),
                    errmsg,
                    errmsg);
-        strcpy(pth->DH_dist_file_name, string1);
+        strcat(pth->DH_dist_file_name,"./DH_interface/");
+        strcat(pth->DH_dist_file_name, string1);
+        strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
+
         pth->run_DH_with_SD = _TRUE_;
       }
       else {
@@ -5843,6 +5851,8 @@ int input_read_parameters_distortions(struct file_content * pfc,
 
   /** 2) Only calculate exotic energy injections and no LCDM processes for spectral distortions ? */
   class_read_flag("sd_only_exotic",psd->include_only_exotic);
+  class_read_flag("include_adiabatic_cooling",psd->include_adiabatic_cooling);
+  class_read_flag("include_acoustic_dissipation",psd->include_acoustic_dissipation);
 
   /** 3) Include g distortions? */
   class_read_flag("sd_include_g_distortion",psd->include_g_distortion);
@@ -5902,6 +5912,16 @@ int input_read_parameters_distortions(struct file_content * pfc,
   }else{
     psd->run_DarkAges_with_distortions = _FALSE_;
   }
+  //uncomment to have control on that flag. Not necessary for now.
+  // class_call(parser_read_string(pfc,"add_SD_to_CLASS",&string1,&flag1,errmsg),
+  //            errmsg,
+  //            errmsg);
+  //
+  // if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+  //     psd->add_SD_to_CLASS = _TRUE_;
+  // }else{
+  //   psd->add_SD_to_CLASS = _FALSE_;
+  // }
 
 
   return _SUCCESS_;
@@ -6760,7 +6780,8 @@ int input_default_params(struct background *pba,
 
   /** 2) Only exotic species? */
   psd->include_only_exotic = _FALSE_;
-
+  psd->include_acoustic_dissipation = _TRUE_;
+  psd->include_adiabatic_cooling = _TRUE_;
   /** 3) Include g distortion in total calculation? */
   psd->include_g_distortion = _FALSE_;
 
