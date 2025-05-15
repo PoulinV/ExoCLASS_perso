@@ -1673,7 +1673,7 @@ int input_read_parameters(struct file_content * pfc,
              errmsg);
 
   /** Read parameters for exotic energy injection quantities */
-  class_call(input_read_parameters_injection(pfc,ppr,pth,
+  class_call(input_read_parameters_injection(pfc,ppr,pth,pba,
                                              errmsg),
              errmsg,
              errmsg);
@@ -3374,6 +3374,7 @@ int input_read_parameters_species(struct file_content * pfc,
 int input_read_parameters_injection(struct file_content * pfc,
                                     struct precision * ppr,
                                     struct thermodynamics * pth,
+                                    struct background * pba,
                                     ErrorMsg errmsg){
 
   /** Summary: */
@@ -3456,8 +3457,7 @@ int input_read_parameters_injection(struct file_content * pfc,
   class_read_double("PBH_spike_mass",pin->PBH_spike_mass);
   class_read_double("PBH_spike_xkd",pin->PBH_spike_xkd);
   class_read_double("PBH_spike_fraction",pin->PBH_spike_fraction);
-  // printf("pin->PBH_spike_fraction %e\n", pin->PBH_spike_fraction);
-  class_call(parser_read_string(pfc,"PBH_spike_type",&string1,&flag1,errmsg),
+    class_call(parser_read_string(pfc,"PBH_spike_type",&string1,&flag1,errmsg),
              errmsg,
              errmsg);
   /* Complete set of parameters */
@@ -3633,9 +3633,8 @@ int input_read_parameters_injection(struct file_content * pfc,
           strcat(pin->command_fz,__CLASSDIR__);
 
           /* Check first if injection history is standard and already implemented */
-
           /* Automatic comand for annihialtion without halo boost*/
-          if(pin->DM_annihilation_efficiency > 0 && pin->DM_annihilation_f_halo == 0){
+          if(pin->DM_annihilation_efficiency > 0 && pin->DM_annihilation_f_halo == 0 && pin->PBH_spike_fraction == 0){
             strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=annihilation --spectrum ");
             sprintf(string2,"");
             class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
@@ -3730,6 +3729,43 @@ int input_read_parameters_injection(struct file_content * pfc,
               "The field injected_particle_branching_ratio is empty!! You need to give a list of number (<=1) (as many as there are injected particles) with a SPACE (no comas) between each of them. The sum MUST add to 1.\n");
             strcat(pin->command_fz," --tdec=");
             sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
+            strcat(pin->command_fz,string2);
+          }
+          /* Automatic comand for annihialtion with halo boost from PBH spike*/
+          else if(pin->DM_annihilation_efficiency > 0 && pin->PBH_spike_fraction > 0){
+            strcat(pin->command_fz,"/DarkAgesModule/bin/DarkAges --hist=PBH_spike --spectrum ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
+            strcat(pin->command_fz," --branching ");
+            sprintf(string2,"");
+            class_call(parser_read_string(pfc,"injected_particle_branching_ratio",&string2,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            strcat(pin->command_fz,string2);
+            class_test(strcmp(string2,"") == 0,errmsg,
+              "The field injected_particle_branching_ratio is empty!! You need to give a list of number (<=1) (as many as there are injected particles) with a SPACE (no comas) between each of them. The sum MUST add to 1.\n");
+            strcat(pin->command_fz," --mass=");
+            sprintf(string2,"%g",pin->DM_annihilation_mass);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --sigv=");
+            sprintf(string2,"%g",pin->DM_annihilation_cross_section);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --xkd=");
+            sprintf(string2,"%g",pin->PBH_spike_xkd);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --oDM=");
+            sprintf(string2,"%g",pba->Omega0_cdm*pba->h*pba->h);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --fbh=");
+            sprintf(string2,"%g",pin->PBH_spike_fraction);
+            strcat(pin->command_fz,string2);
+            strcat(pin->command_fz," --mbh=");
+            sprintf(string2,"%g",pin->PBH_spike_mass);
             strcat(pin->command_fz,string2);
           }
 

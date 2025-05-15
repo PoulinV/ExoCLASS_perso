@@ -29,6 +29,9 @@ from .transfer import transfer
 from .common import f_function
 from .__init__ import DarkAgesError, get_logEnergies, get_redshift, print_info
 import numpy as np
+import os
+
+#from ../../external/heating/interpolate_DM_spike_decay_rate import interpol_l10GammaBH_from_data_table
 
 class model(object):
 	u"""
@@ -220,6 +223,208 @@ class annihilating_halos_model(model):
 		spec_photons = np.vectorize(scaling_boost_factor).__call__(redshift[None,:],ref_ph_spec[:,None],zh,fh)
 
 		model.__init__(self, spec_electrons, spec_photons, normalization, logEnergies,3)
+
+class PBH_spike_model(model):
+    def __init__(self,ref_el_spec,ref_ph_spec,ref_oth_spec,mbh,fbh,mchi,xkd,sigv,oDM,logEnergies=None,redshift=None, **DarkOptions):
+        from .common import  time_at_z
+        from scipy import interpolate
+        # t_ipython().run_line_magic('matplotlib', 'inline')
+
+        # Computation time
+        # import time
+        # # To day-stamp the data
+        # from datetime import datetime
+
+
+        #plt.rcParams.update({
+        #    "text.usetex": True,
+        #    "font.family": "serif",
+        #    "font.size": 10,
+        #    "pdf.fonttype":42})
+
+
+        # #### 1st step: define absolute dir path to data + declare global variables (vectors and data matrix)
+
+
+        ###
+        ### Here, we set up the python environment to load the tabulated values of GammaBH,
+        ### read from a data file, as a function of mbh, mchi, xkd, rhomax, assuming
+        ### fbh = 0. A multidimensional interpolation function is defined that allows to
+        ###
+
+        #LOCAL_DATA_DIR_NAME = '/Path/To/Your/Data/Directory/'
+        LOCAL_DATA_DIR_NAME = '/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_PBH_spike/external/heating/'
+        LOCAL_FILE_NAME = 'new_rhosquareV_GaussMeth_xkd_mchi_mbh_rhomax0_rhosquareV_log10.npz'
+
+
+
+        ### Init vectors and matrices
+        ### (Lxxx indicates that tabulated values are in the form log10(xxx))
+        N_INIT = 2
+        VAR_LXKD_V = np.zeros(N_INIT)
+        VAR_LMCHI_V = np.zeros(N_INIT)
+        VAR_LMBH_V = np.zeros(N_INIT)
+        VAR_LRHOMAX_V = np.zeros(N_INIT)
+        VAR_LRHOSQUAREV_MX = np.zeros((N_INIT,N_INIT,N_INIT,N_INIT,N_INIT))
+
+
+        # #### 2nd step: define the loading function
+
+
+        ###
+        ### Function that loads the data from an npz file, and initializes the data vectors
+        ### and matrices from which the interpolation will be performed.
+        ###
+        def load_GammaBH_data_table(fname='file_name'):
+            # global VAR_LXKD_V, VAR_LMCHI_V, VAR_LMBH_V, VAR_LRHOMAX_V, VAR_LRHOSQUAREV_MX
+            fullname = LOCAL_DATA_DIR_NAME + fname
+            yes_file = os.path.isfile(fullname)
+            if yes_file:
+                #print('LOADING DATA FILE ...')
+                npzfile = np.load(fullname)
+                header = npzfile['header']
+                #print(header)
+                VAR_LMBH_V = npzfile['l10mbh']
+                VAR_LXKD_V = npzfile['l10xkd']
+                VAR_LMCHI_V = npzfile['l10mchi']
+                VAR_LRHOMAX_V = npzfile['l10rhomax']
+                VAR_LRHOSQUAREV_MX = npzfile['l10rhosquareV']
+                # print(VAR_LXKD_V, VAR_LMCHI_V, VAR_LMBH_V, VAR_LRHOMAX_V, VAR_LRHOSQUAREV_MX)
+                return VAR_LXKD_V, VAR_LMCHI_V, VAR_LMBH_V, VAR_LRHOMAX_V, VAR_LRHOSQUAREV_MX
+            else:
+                return 'FILE {} NOT FOUND'.format(fullname)
+
+        VAR_LXKD_V, VAR_LMCHI_V, VAR_LMBH_V, VAR_LRHOMAX_V, VAR_LRHOSQUAREV_MX=load_GammaBH_data_table(LOCAL_FILE_NAME)
+
+        # #### 3rd step: define the main interpolating function
+
+
+        ##
+        ## Interpolation function that determines the log10 of the effective spike decay rate
+        ## in [1/s], as a function of the following parameters:
+        ## mbh[Msun], fbh (DM fraction in BHs), mchi[GeV], xkd (kinetic decoupling),
+        ## sigv [cm3/s], dt [s, since matter-radiation equality].
+        ## The effective time is encoded in the data in terms of rhomax = mchi/(sigv*dt).
+        ## Note that oDM is omega_dm = Omega_dm * h^2.
+        ##
+        def interpol_l10GammaBH_from_data_table(mbh,fbh,mchi,xkd,sigv,z,oDM=0.11933):
+
+            grid_points = (VAR_LXKD_V,VAR_LMCHI_V,VAR_LMBH_V,VAR_LRHOMAX_V)
+
+
+            #cosmo_fraction = 1.
+            cosmo_fraction = oDM/0.11933 ## The original calculation was performed with Planck+18.
+
+            epsilon_time = 1.e-5# minimal time [s] to avoid numerical crashes
+            GeV_IN_g = 1.782661845e-24 # convert a GeV into g
+            TimeEQ = 1.6110761e+12 # Time [s] spent between end of inflation and equality
+            # dteff = dt+epsilon_time
+            dteff = time_at_z(z)+epsilon_time
+            mchig = mchi*GeV_IN_g # GeV -> g
+            # print(mchig,mchi) # GeV -> g
+
+            # We calculate the approximate saturation density, which is only used here as
+            # an effective time.
+            rhomax = mchig/(sigv*dteff)/cosmo_fraction # g/cm3
+
+            # The required point coordinates in this parameter space.
+            lmbh = np.log10(mbh)
+            lmchi, lxkd, lrhomax = np.log10(mchi), np.log10(xkd), np.log10(rhomax)
+            this_point = np.array([lxkd,lmchi,lmbh,lrhomax])
+            # print(lrhomax)
+            # print(grid_points,this_point)
+            # The corresponding J-factor value (log10)
+            lGammaBH = interpolate.interpn(grid_points,VAR_LRHOSQUAREV_MX,this_point)
+
+            # Now, we introduce an approximate correction by hand to account for the
+            # DM fraction in BHs. Asympotically, the correction goes from (1-f)^2 for light
+            # BHs to (1-f)^4/3 for heavy BHs.
+            mbreak = 5.e-7*(1.-fbh)*(xkd*1.e-4)**(3./2.) * (3.e-26*TimeEQ*8./(sigv*dteff))**(1./3.)
+            lmeff = np.log10(mbh/mbreak)
+            x = np.tanh(lmeff)# -1 (1) if mbh << mbreak (>>mbreak)
+            x = (x+1.)/2. # 0 (1) if mbh<<mbreak (>>mbreak)
+            corrfbh = (1.-fbh)**2 * (1.-x) + (1.-fbh)**(4./3.)*x
+            lGammaBH += np.log10(corrfbh)
+
+            ## Finally, we multiply by the factor that translates the J factor into a decay rate.
+            J_into_GammaBH = sigv/(2.*mchig**2)
+            lGammaBH += np.log10(J_into_GammaBH) ## log10(Gamma/s)
+
+            ## Extra-correction if one departs from Planck+18 cosmological parameters:
+            lGammaBH += np.log10(cosmo_fraction**2) ## log10(Gamma/s)
+
+
+            return lGammaBH[0]
+
+
+
+        def boost_factor_spike(mbh,fbh,mchi,xkd,sigv,z,oDM):
+            # if(pin->t-pin->t_eq>0){
+            #   PBH_spike_at_t(pin,log10(pin->t-pin->t_eq),&Gamma_at_t);
+            #   PBH_spike_injection = 2*(pin->DM_annihilation_mass*_eV_*1.e9/_c_/_c_)*pin->PBH_spike_fraction*pin->rho_cdm/(pin->PBH_spike_mass*_Sun_mass_)*pow(10,Gamma_at_t);
+            # }else{
+            #   Gamma_at_t = 0;
+            #   PBH_spike_injection = 0;
+            # }
+            l10GAmmaBH = interpol_l10GammaBH_from_data_table(mbh,fbh,mchi,xkd,sigv,z);
+            TimeEQ = 1.6110761e+12 # Time [s] spent between end of inflation and equality
+            _c_  = 2.99792458e8 # c in m/s */
+            _eV_ =  1.602176487e-19        #1 eV expressed in J */
+            _Jm3_over_Mpc2_=  0.0151730087  #conversion factor from  CLASS_rho 1/Mpc^2 to rho in Joule/m^3 (rho in Joule/m^3=const*CLASS_rho)
+            _Sun_mass_ =1.98855e30 # sun mass in kg
+            _eV_over_joules_ = 6.24150647996e+18 # eV/J
+            rho_cdm = oDM*(1e5/_c_)**2*z**3*_Jm3_over_Mpc2_;                                   #[J/m^3]
+            PBH_spike_injection = (np.tanh((time_at_z(z)-1.1*TimeEQ)/10)+1)/2*2*(mchi*_eV_*1.e9/_c_/_c_)*fbh*rho_cdm/(mbh*_Sun_mass_)*pow(10,l10GAmmaBH);
+            #printf("PBH_spike_mass %e\n",pin->PBH_spike_mass);
+            annihilation_at_z = sigv*1.e-6/(mchi*_eV_*1.e9);
+
+            DM_smooth = pow(rho_cdm,2.)*annihilation_at_z;
+            boost_factor = max(pow(1-fbh,2)+PBH_spike_injection/DM_smooth-1,0);
+            # print('boost',boost_factor,'tanh',(np.tanh((time_at_z(z)-1.1*TimeEQ)/10)+1)/2,'log10z',np.log10(z),l10GAmmaBH)
+            # print(np.log10(z),boost_factor)
+            # if 1e3<z<2e3:
+            #     print('log10z',np.log10(z),'boost',boost_factor,annihilation_at_z,pow(rho_cdm,2.))
+                # print(oDM,z,'mchi', mchi*_eV_*1.e9/_c_/_c_,'rho_pbh',fbh,rho_cdm,(mbh*_Sun_mass_))
+
+            return 1+boost_factor
+
+        def scaling_boost_factor(redshift,spec_point,mbh,fbh,mchi,xkd,sigv,oDM):
+            ret = np.ones_like(redshift)
+            # print(redshift)
+            # for i in range(len(redshift)):
+            ret= spec_point*boost_factor_spike(mbh,fbh,mchi,xkd,sigv,redshift,oDM)
+            return ret
+
+        if logEnergies is None:
+            logEnergies = get_logEnergies()
+        if redshift is None:
+            redshift = get_redshift()
+
+        tot_spec = ref_el_spec + ref_ph_spec + ref_oth_spec
+
+        norm_by = DarkOptions.get('normalize_spectrum_by','energy_integral')
+        if norm_by == 'energy_integral':
+            from .common import trapz, logConversion
+            E = logConversion(logEnergies)
+            if len(E) > 1:
+                normalization = trapz(tot_spec*E**2*np.log(10), logEnergies)*np.ones_like(redshift)
+            else:
+                normalization = (tot_spec*E)[0]
+        elif norm_by == 'mass':
+            normalization = np.ones_like(redshift)*(2*mchi)
+        else:
+            raise DarkAgesError('I did not understand your input of "normalize_spectrum_by" ( = {:s}). Please choose either "mass" or "energy_integral"'.format(norm_by))
+
+        # print(redshift)
+        for z in range(len(redshift)):
+            # aa=boost_factor_spike(mbh,fbh,mchi,xkd,sigv,redshift[z],oDM)
+            if boost_factor_spike(mbh,fbh,mchi,xkd,sigv,redshift[z],oDM) > 0: normalization[z] = normalization[z]*(1+boost_factor_spike(mbh,fbh,mchi,xkd,sigv,redshift[z],oDM))
+        # exit()
+        spec_electrons = np.vectorize(scaling_boost_factor).__call__(redshift[None,:],ref_el_spec[:,None],mbh,fbh,mchi,xkd,sigv,oDM)
+        spec_photons = np.vectorize(scaling_boost_factor).__call__(redshift[None,:],ref_ph_spec[:,None],mbh,fbh,mchi,xkd,sigv,oDM)
+
+        model.__init__(self, spec_electrons, spec_photons, normalization, logEnergies,3)
+
 
 
 class decaying_model(model):

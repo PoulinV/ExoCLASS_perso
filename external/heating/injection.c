@@ -22,7 +22,6 @@ int injection_init(struct precision * ppr,
                    struct thermodynamics* pth){
 
   /** Summary: */
-
   /** - Define local variable */
   struct injection* pin = &(pth->in);
   int index_inj, index_dep;
@@ -817,10 +816,14 @@ int injection_rate_DM_annihilation(struct injection * pin,
     }
     PBH_spike_injection = (tanh((pin->t-1.1*pin->t_eq)/10)+1)/2*2*(pin->DM_annihilation_mass*_eV_*1.e9/_c_/_c_)*pin->PBH_spike_fraction*pin->rho_cdm/(pin->PBH_spike_mass*_Sun_mass_)*pow(10,Gamma_at_t);
     // printf("PBH_spike_mass %e\n",pin->PBH_spike_mass);
+   // if(z<2e3 && z > 1e3)printf("%e %e %e %e %e\n",z,);
     DM_smooth = pow(pin->rho_cdm,2.)*annihilation_at_z;
     boost_factor = pow(1-pin->PBH_spike_fraction,2)+PBH_spike_injection/DM_smooth-1;
+    if(boost_factor<0)boost_factor =0;
     // printf("pin->t_eq  %e  pin->t %e\n",pin->t_eq,pin->t);
-  if(pin->t-pin->t_eq>0 && pin->injection_verbose == -1 && log10(z)>0)printf("%e  %e %e %e %e\n",log10(z),log10(pin->t-pin->t_eq),Gamma_at_t,log10(PBH_spike_injection/_eV_/1e9/1e6),log10(PBH_spike_injection/DM_smooth));
+  // if(pin->t-pin->t_eq>0 && pin->injection_verbose == -1 && log10(z)>0)
+  // printf("%e  %e %e %e %e\n",log10(z),log10(pin->t-pin->t_eq),Gamma_at_t,log10(PBH_spike_injection/_eV_/1e9/1e6),log10(PBH_spike_injection/DM_smooth));
+  // if(z<2e3 && z > 1e3)printf("%e  %e %e %e\n",log10(z),boost_factor,annihilation_at_z,pow(pin->rho_cdm,2.));
   // printf("pin->DM_annihilation_mass %e pan %e annihilation_at_z %e\n", pin->DM_annihilation_mass,pin->DM_annihilation_efficiency,annihilation_at_z);
   // if(pin->t-pin->t_eq>0 && z>0)printf("%e  %e %e\n",log10(z),log10(PBH_spike_injection/DM_smooth),log10(DM_smooth/_eV_/1e9/1e6));
   }
@@ -1401,8 +1404,9 @@ int injection_read_spike_from_file(struct precision* ppr,
                "could not read value of parameters coefficients in line %i in file '%s'\n",
                headlines,PBH_spike_file);
   }
+  pclose(fA);
 
-  fclose(fA);
+  // fclose(fA);
 
   /** - Spline file contents */
   /* Spline in one dimension */
@@ -1458,9 +1462,9 @@ int injection_read_chi_z_from_file(struct precision* ppr,
     }
 
     fflush(fA);
-
+    // printf("before popen\n", );
     fA = popen(command_with_arguments, "r");
-
+    // printf("after popen");
     class_test(fA == NULL, pin->error_message, "The program failed to set the environment for the external command.");
   }else{
       class_open(fA, chi_z_file, "r", pin->error_message);
@@ -1468,7 +1472,6 @@ int injection_read_chi_z_from_file(struct precision* ppr,
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,fA) != NULL) {
     headlines++;
-
     /* Eliminate blank spaces at beginning of line */
     left=line;
     while (left[0]==' ') {
@@ -1511,7 +1514,7 @@ int injection_read_chi_z_from_file(struct precision* ppr,
                index_z+headlines,chi_z_file);
   }
 
-  fclose(fA);
+  pclose(fA);
 
   /* Spline in one dimension */
   for(index_dep=0;index_dep<pin->dep_size;++index_dep){

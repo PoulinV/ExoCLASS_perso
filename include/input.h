@@ -384,6 +384,7 @@ extern "C" {
   int input_read_parameters_injection(struct file_content * pfc,
                                       struct precision * ppr,
                                       struct thermodynamics * pth,
+                                      struct background * pba,
                                       ErrorMsg errmsg);
 
   int input_read_parameters_nonlinear(struct file_content * pfc,

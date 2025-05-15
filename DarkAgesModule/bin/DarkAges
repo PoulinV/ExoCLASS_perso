@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import, division, print_function
-
 import os
 import sys
 import optparse
@@ -56,7 +55,7 @@ parser.add_option("--model", dest='model', metavar='MODEL',
                   help="Load a preprocessed model")
 parser.add_option("--rebuild-model", action='store_true', dest='rebuild_model', default=False,
                   help="Force rebuilding a model")
-parser.add_option("--hist", default='annihilation', choices=['annihilation','annihilation_halos','decay','evaporating_PBH','accreting_PBH'], dest='injection_history',
+parser.add_option("--hist", default='annihilation', choices=['annihilation','annihilation_halos','decay','evaporating_PBH','accreting_PBH','PBH_spike'], dest='injection_history',
                   help="Define the injection history of the model.")
 parser.add_option("-m","--mass", type="float", dest='mass',
                   help="Define the mass of the DM-candidate [in GeV] or the PBH mass [in g for evaporating PBH and Msun for accreting ones].")
@@ -76,6 +75,16 @@ parser.add_option("--zh", type='float', dest='zh',
                   help="Define the onset of halos formation.")
 parser.add_option("--fh", type='float', dest='fh',
                   help="Define the amplitude of DM halos.")
+parser.add_option("--fbh_spike", type='float', dest='fbh',
+                help="fraction of PBH for the spike model")
+parser.add_option("--mbh_spike", type='float', dest='mbh',
+                help="fraction of PBH for the spike model")
+parser.add_option("--xkd", type='float', dest='xkd',
+                help="kinetic decoupling of the DM for the spike model")
+parser.add_option("--sigv", type='float', dest='sigv',
+                help="sigmav of the DM for the spike model")
+parser.add_option("--oDM", type='float', dest='oDM',
+                help="Omega_cdmh2 for the spike model")
 parser.add_option("", "--use-background", dest="background", nargs=3, type="float", default=(67.27, 0.3156, 8e-5),
                   help="Define the background parameters (H0, Omega_m, Omega_r) for the calculation of H(z) and t(z)")
 parser.add_option("--extra-options", dest="extra", metavar="EXTRA.yaml",
@@ -212,4 +221,4 @@ if options.spectrum is not None:
 	except AssertionError:
 		raise DarkAgesError('The number of spectra (== {:d}) and the number of branching ratios (== {:d}) do not match'.format(len(options.spectrum),len(options.branchings)))
 
-	sys.exit( recipes.loading_from_specfiles(options.spectrum, transfer_functions, options.mass, t_dec=options.t_dec, zh=options.zh, fh=options.fh, hist=options.injection_history, branchings=options.branchings, **DarkOptions) )
+	sys.exit( recipes.loading_from_specfiles(options.spectrum, transfer_functions, options.mass, t_dec=options.t_dec, zh=options.zh, fh=options.fh,mbh=options.mbh,fbh=options.fbh,xkd=options.xkd,sigv=options.sigv,oDM=options.oDM, hist=options.injection_history, branchings=options.branchings, **DarkOptions) )
