@@ -3382,10 +3382,58 @@ int input_read_parameters_injection(struct file_content * pfc,
   /** - Define local variables */
   struct injection* pin = &(pth->in);
   int flag1,flag2,flag3;
-  char string1[_ARGUMENT_LENGTH_MAX_],string2[_ARGUMENT_LENGTH_MAX_];
+  char string1[_ARGUMENT_LENGTH_MAX_],string2[_ARGUMENT_LENGTH_MAX_],string3[_ARGUMENT_LENGTH_MAX_];
   string1[0]='\0';
   string2[0]='\0';
+  string3[0]='\0';
   double param3;
+
+  /** 0) injection from stars */
+  //VP added That
+  class_call(parser_read_string(pfc,"include_reionization_from_stars",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
+      pin->include_reionization_from_stars = _TRUE_;
+
+        class_call(parser_read_string(pfc,"stars_photoion_file",&string2,&flag2,errmsg),
+                   errmsg,
+                   errmsg);
+        /* Test */
+        class_test(flag2 == _FALSE_,
+                   errmsg,
+                   "for the option 'include_reionization_from_stars'  the option 'stars_photoion_file' is required.");
+        /* Complete set of parameters */
+        strcpy(pin->stars_photoion_file, string2);
+        class_call(parser_read_string(pfc,"stars_photoheat_file",&string3,&flag3,errmsg),
+                   errmsg,
+                   errmsg);
+        /* Test */
+        class_test(flag3 == _FALSE_,
+                   errmsg,
+                   "for the option 'include_reionization_from_stars'  the option 'stars_photoheat_file' is required.");
+        /* Complete set of parameters */
+        strcpy(pin->stars_photoheat_file, string3);
+      }
+    else {
+      pin->include_reionization_from_stars = _FALSE_;
+    }
+  }
+  class_call(parser_read_string(pfc,"include_recombination_cooling",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
+      pth->include_recombination_cooling = _TRUE_;
+      }
+    else {
+      pth->include_recombination_cooling = _FALSE_;
+    }
+  }
+
+
+
   /** 1) DM annihilation */
   /** 1.a) Annihilation efficiency */
   /* Read */
@@ -3889,7 +3937,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                errmsg);
     if (flag1 == _TRUE_ && (string_begins_with(string2,'y') || string_begins_with(string2,'Y'))){
       // class_call(parser_read_string(pfc,
-      //                               "DH distortion file name",
+        //                               " ",
       //                               &(string1),
       //                               &(flag1),
       //                               errmsg),
@@ -3918,8 +3966,12 @@ int input_read_parameters_injection(struct file_content * pfc,
                                     errmsg),
                  errmsg,
                  errmsg);
-      strcat(pth->command_DH,string1);
-
+      strcat(pth->DH_file_name,"./DH_interface/");
+      strcat(pth->DH_file_name, string1);
+      strcat(pth->DH_file_name,"_CLASSformat.txt");
+      printf("input pth->DH_file_name %s\n", pth->DH_file_name);
+      strcat(pth->command_DH, string1);
+      strcat(pth->command_DH, "_CLASSformat.txt");
       if(pin->DM_annihilation_efficiency > 0){
         strcat(pth->command_DH," --DM_process 'swave'");
         sprintf(string2,"");
@@ -5912,6 +5964,18 @@ int input_read_parameters_distortions(struct file_content * pfc,
   }else{
     psd->run_DarkAges_with_distortions = _FALSE_;
   }
+
+  class_call(parser_read_string(pfc,"apply_smoothing",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+    psd->apply_smoothing = _TRUE_;
+    class_read_double("nbins_smoothing",psd->nbins_smoothing); //Deprecated parameter
+  }
+  else{
+    psd->apply_smoothing = _FALSE_;
+  }
+
   class_call(parser_read_string(pfc,"include_DH_SMresidual_distortions",&string1,&flag1,errmsg),
              errmsg,
              errmsg);
@@ -5923,15 +5987,15 @@ int input_read_parameters_distortions(struct file_content * pfc,
     psd->include_DH_SMresidual_distortions = _FALSE_;
   }
   //uncomment to have control on that flag. Not necessary for now.
-  // class_call(parser_read_string(pfc,"add_SD_to_CLASS",&string1,&flag1,errmsg),
-  //            errmsg,
-  //            errmsg);
-  //
-  // if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
-  //     psd->add_SD_to_CLASS = _TRUE_;
-  // }else{
-  //   psd->add_SD_to_CLASS = _FALSE_;
-  // }
+  class_call(parser_read_string(pfc,"add_SD_to_CLASS",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+
+  if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+      psd->add_SD_to_CLASS = _TRUE_;
+  }else{
+    psd->add_SD_to_CLASS = _FALSE_;
+  }
 
 
   return _SUCCESS_;
@@ -6803,6 +6867,9 @@ int input_default_params(struct background *pba,
   psd->has_SZ_effect = _FALSE_;
   /** 5.a) What type of approximation you want to use for the SZ effect? */
   psd->sd_reio_type = sd_reio_Chluba;
+
+  psd->add_SD_to_CLASS = _TRUE_;
+
 
   /**
    * Default to input_read_additional

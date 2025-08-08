@@ -104,7 +104,7 @@ double rec_TLA_dxHIIdlna(REC_COSMOPARAMS *cosmo, double xe, double xHII, double 
   Dxe2       = xe*xHII - s*(1.-xHII);    /* xe xp - xe xp[Saha eq with 1s] -- gives more compact expressions */
   DalphaB    = alphaB_TM - alphaB_TR;
 
-  return -nH*(s*(1.-xHII)*DalphaB + Dxe2*alphaB_TM)*C/H + (cosmo->inj_params->ion + (1.-C)*cosmo->inj_params->exclya)/H;
+  return -nH*(s*(1.-xHII)*DalphaB + Dxe2*alphaB_TM)*C/H + (cosmo->inj_params->ion + (1.-C)*cosmo->inj_params->exclya )/H;
 
 }
 
@@ -347,7 +347,7 @@ void interpolate_rates(double Alpha[2], double DAlpha[2], double Beta[2], double
     *error = 1;
     return;
   }
-  
+
   /* T_RATIO is defined to be min(TM_TR, TR_TM) */
   if (TM_TR > 1.) {
     T_RATIO = 1./TM_TR; i = 2;
@@ -456,7 +456,7 @@ double rec_swift_hyrec_dxHIIdlna(HYREC_DATA *data, double xe, double xHII, doubl
   interpolate_rates(Alpha, DAlpha, Beta, &R2p2s, TR, TM/TR, atomic, fsR, meR, error, data->error_message);
 
   RLya = LYA_FACT(fsR, meR) *H/nH/(1.-xHII);   // 8 PI H/(3 nH x1s lambda_Lya^3)
-  
+
   if (TR/kBoltz > fit->swift_func[0][DKK_SIZE-1]) DK_K = 0.;
   else {
     DK_K_fid = rec_interp1d(fit->swift_func[0][0], 10., fit->swift_func[1], DKK_SIZE, TR/kBoltz, error, data->error_message);
@@ -1092,4 +1092,3 @@ double rec_dxHIIdlna(HYREC_DATA *data, int model, double xe, double xHII, double
   }
   return result;
 }
-

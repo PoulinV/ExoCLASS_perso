@@ -60,7 +60,7 @@ int distortions_init(struct precision * ppr,
     //if we run with DarkAges module, automatically go to step 2 of the DH calculation.
     pth->run_DH_with_SD = _TRUE_;
     psd->loop_over_CLASS_for_DH = 1;
-    psd->add_SD_to_CLASS = _TRUE_; //by default, DarkAges compute the "residual distortion". We add that to the CLASS output.
+    // psd->add_SD_to_CLASS = _TRUE_; //by default, DarkAges compute the "residual distortion". We add that to the CLASS output.
   }
 
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
@@ -890,6 +890,7 @@ int distortions_compute_heating_rate(struct precision* ppr,
                    pin->error_message,
                    psd->error_message);
         heat += pin->pvecdeposition[pin->index_dep_heat];
+        // printf("heat %e z %e\n",heat,1/a);
       }
 
       /** Calculate total heating rate */
@@ -2263,7 +2264,7 @@ int output_print_data_sd_highz(FILE *out,
 int injection_read_DH_distortions_from_file( struct distortions * psd,struct thermodynamics * pth){
   /** - Define local variables */
   FILE *DH_input = NULL;
-  char line[_LINE_LENGTH_MAX_];
+  char line[_LINE_LENGTH_MAX_], string[_LINE_LENGTH_MAX_];
   char * left;
   int headlines, index_DH, index_eng, index_psd;
   struct injection* pin = &(pth->in);
@@ -2282,7 +2283,11 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   // printf("here!!\n");
   if(psd->run_DarkAges_with_distortions){
     strcat(pin->command_fz," --print_spectral_distortion");
-
+    if(psd->apply_smoothing == _TRUE_){
+      strcat(pin->command_fz," --apply_smoothing True --nbins_smoothing ");
+      sprintf(string,"%d",psd->nbins_smoothing);
+      strcat(pin->command_fz,string);
+    }
     if (pth->thermodynamics_verbose > 0) {
       printf(" -> running: %s\n", pin->command_fz);
     }
@@ -2328,7 +2333,6 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
       break;
     }
   }
-
   /** - Read file */
   for(index_eng=0;index_eng<psd->DH_eng_size;++index_eng){
     /* Read coefficients */

@@ -2579,7 +2579,7 @@ int thermodynamics_derivs(
   struct thermorecfast * precfast;
   struct injection * pin;
   int ap_current;
-
+  double alphaA_recomb_H, alphaA_recomb_He, T5_factor,coll_ion_rate_H,coll_ion_rate_He,gaunt_fac;
   /* varying fundamental constants */
   double alpha = 1., me = 1., rescale_rate = 1.;
 
@@ -2648,6 +2648,10 @@ int thermodynamics_derivs(
 
   /* Save the output in local variables */
   x = ptdw->x_reio;
+  /** - Derivative of the ionization fractions */
+  x_H = ptdw->x_H;
+  x_He = ptdw->x_He;
+  x = ptdw->x_noreio;
 
   /** - If needed, calculate heating effects (i.e. any possible energy deposition rates
       affecting the evolution equations for x and Tmat) */
@@ -2655,15 +2659,10 @@ int thermodynamics_derivs(
   if (pth->has_exotic_injection == _TRUE_) {
     /* In case of energy injection, we currently neglect the contribution to helium ionization for RecFast ! */
     /* Note that we calculate here the energy injection INCLUDING reionization ! */
-    class_call(injection_calculate_at_z(pba,pth,x,z,Tmat,pvecback),
+    class_call(injection_calculate_at_z(pba,pth,x,z,Tmat,x_H,x_He,pvecback),
                pin->error_message,
                error_message);
   }
-
-  /** - Derivative of the ionization fractions */
-  x_H = ptdw->x_H;
-  x_He = ptdw->x_He;
-  x = ptdw->x_noreio;
   switch (pth->recombination) {
 
     /** --> use Recfast or HyRec to get the derivatives d(x_H)/dz and
@@ -2706,6 +2705,8 @@ int thermodynamics_derivs(
                  ptw->ptdw->phyrec->error_message,
                  error_message);
     }
+    if(x_H > 1)dy[ptv->index_ti_x_H]=0;
+    if(x_He > 1)dy[ptv->index_ti_x_He]=0;
     break;
   }
 
@@ -2792,11 +2793,14 @@ int thermodynamics_derivs(
       + 2.*Tmat/(1.+z)                                                          /* Adiabatic expansion */
       + rate_gamma_b * (Tmat-Trad) / (Hz*(1.+z))                                /* Coupling to photons*/
       - ptw->Tcmb;                                                              /* dTrad/dz */
+      // printf("before %e, %e\n",y[ptv->index_ti_D_Tmat] + Trad,  dy[ptv->index_ti_D_Tmat]);
 
     /* Add heating from energy injection */
     if (pth->has_exotic_injection == _TRUE_) {
       dy[ptv->index_ti_D_Tmat] -= pin->pvecdeposition[pin->index_dep_heat] / heat_capacity / (Hz*(1.+z));
+      // printf("after %e, %e\n",y[ptv->index_ti_D_Tmat] + Trad,  dy[ptv->index_ti_D_Tmat]);
     }
+
     /* Add term coming from idm_b */
     if (pth->has_idm_b == _TRUE_){
       mu_bar = _m_H_ / (1. + x + ptw->fHe) / (1. - pth->YHe); //In units of kg
@@ -4433,7 +4437,7 @@ int thermodynamics_output_titles(
                                  char titles[_MAXTITLESTRINGLENGTH_]
                                  ) {
 
-  class_store_columntitle(titles,"scale factor a",_TRUE_); //NS TODO :: Added a, tell Julien
+  //class_store_columntitle(titles,"scale factor a",_TRUE_); //NS TODO :: Added a, tell Julien
   class_store_columntitle(titles,"z",_TRUE_);
   class_store_columntitle(titles,"conf. time [Mpc]",_TRUE_);
   class_store_columntitle(titles,"x_e",_TRUE_);
@@ -4445,7 +4449,7 @@ int thermodynamics_output_titles(
   //class_store_columntitle(titles,"g'",_TRUE_);
   //class_store_columntitle(titles,"g''",_TRUE_);
   class_store_columntitle(titles,"Tb [K]",_TRUE_);
-  class_store_columntitle(titles,"dTb [K]",_TRUE_);
+  class_store_columntitle(titles,"dT_b [K]",_TRUE_);
   class_store_columntitle(titles,"w_b",_TRUE_);
   class_store_columntitle(titles,"c_b^2",_TRUE_);
   if (pba->has_idm == _TRUE_) {
@@ -4511,7 +4515,7 @@ int thermodynamics_output_data(
                pba->error_message,
                pth->error_message);
 
-    class_store_double(dataptr,1./(1.+z),_TRUE_,storeidx);
+    //class_store_double(dataptr,1./(1.+z),_TRUE_,storeidx);
     class_store_double(dataptr,z,_TRUE_,storeidx);
     class_store_double(dataptr,tau,_TRUE_,storeidx);
     class_store_double(dataptr,pvecthermo[pth->index_th_xe],_TRUE_,storeidx);
@@ -4869,10 +4873,16 @@ int injection_read_DH_from_file(struct thermodynamics * pth){
       printf(" -> running: %s\n", pth->command_DH);
     }
     fflush(DH_input);
-    DH_input = popen(pth->command_DH, "r"); //currently not working
+
+    system(pth->command_DH);
+    // class_sprintf(pth->DH_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
+    printf("pth->DH_file_name %s\n", pth->DH_file_name);
+    class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
+    // DH_input = popen(pth->command_DH, "r"); //currently not working
     // class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
     class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
   } else {
+    printf("%s\n",  pth->DH_file_name);
     class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
   }
 

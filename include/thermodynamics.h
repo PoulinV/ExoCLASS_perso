@@ -142,6 +142,8 @@ struct thermodynamics
                                  anisotropies (and spectral
                                  distorsions if requested). */
 
+  short include_recombination_cooling; /**< true include recombination cooling. */
+
   struct injection in; /**< structure to store exotic energy injections and their energy deposition */
 
   double annihilation; /**< parameter describing CDM annihilation (f <sigma*v> / m_cdm, see e.g. 0905.0003) */

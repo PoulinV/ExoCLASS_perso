@@ -202,6 +202,8 @@ struct distortions
   char DH_SMresiduals_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH SM residual distortions as input
   short output_sd_at_highz; /**< Do we output at highz? default= no unless user require to use DarkHistory */
   short run_DarkAges_with_distortions; /**< Do we compute SD with DarkAges? */
+  short apply_smoothing; /**< Do we smooth the SD residuals computed with DarkAges? */
+  int nbins_smoothing; /**< if yes, how many bins? */
   int add_SD_to_CLASS;                             /**< do we add DarkAges or DarkHistory SD to the CLASS output or overwrite it? */
   //@}
 

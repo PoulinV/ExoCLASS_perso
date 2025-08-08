@@ -61,6 +61,8 @@ struct injection{
   int chi_type;
   FileName chi_z_file;
   FileName chi_x_file;
+  FileName stars_photoion_file;
+  FileName stars_photoheat_file;
 
   //@}
 
@@ -95,6 +97,7 @@ struct injection{
   double N_e0;
   /* Redshift dependent, i.e. defined in injection_calculate_at_z */
   double heat_capacity;
+  short include_recombination_cooling;
   double T_b;
   double x_e;
   double nH;
@@ -164,6 +167,20 @@ struct injection{
   int index_dep_lowE;
   int dep_size;
 
+  double* stars_photoheat_table; /* The table of energy depositions into the IGM of different deposition types */
+  double* stars_photoheat_rate;
+  double* stars_photoion_table; /* The table of energy depositions into the IGM of different deposition types */
+  double* stars_photoion_rate;
+  int index_stars_dep_H;
+  int index_stars_dep_HeI;
+  int index_stars_dep_HeII;
+  int stars_photoheat_dep_size;
+  int stars_photoion_dep_size;
+  int last_index_stars_photoion;
+  int last_index_stars_photoheat;
+  int stars_photoion_z_size;
+  int stars_photoheat_z_size;
+
   /* Energy deposition vector */
   double* pvecdeposition;
 
@@ -175,6 +192,7 @@ struct injection{
 
   /* Flags */
   int has_exotic_injection;
+  int include_reionization_from_stars;
 
   int has_DM_ann;
   int has_DM_dec;
@@ -219,6 +237,8 @@ extern "C" {
                                double x,
                                double z,
                                double Tmat,
+                               double x_H,
+                               double x_He,
                                double* pvecback);
 
   int injection_energy_injection_at_z(struct injection* phe,
@@ -228,6 +248,10 @@ extern "C" {
   int injection_deposition_function_at_z(struct injection* phe,
                                          double x,
                                          double z);
+  int injection_energy_injection_from_stars_at_z(struct injection* phe,
+                                         double z,
+                                         double x_H,
+                                         double x_He);
 
   int injection_deposition_at_z(struct thermodynamics* pth,
                                 double z);
@@ -265,6 +289,12 @@ extern "C" {
   int injection_read_chi_x_from_file(struct precision* ppr,
                                      struct injection* phe,
                                      char* chi_x_file);
+  int injection_read_stars_photoion_from_file(struct precision* ppr,
+                                     struct injection* phe,
+                                     char* stars_photoion_file);
+  int injection_read_stars_photoheat_from_file(struct precision* ppr,
+                                     struct injection* phe,
+                                     char* stars_photoheat_file);
 
   int injection_output_titles(struct injection* phe,
                               char titles[_MAXTITLESTRINGLENGTH_]);
