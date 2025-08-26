@@ -4876,13 +4876,11 @@ int injection_read_DH_from_file(struct thermodynamics * pth){
 
     system(pth->command_DH);
     // class_sprintf(pth->DH_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
-    printf("pth->DH_file_name %s\n", pth->DH_file_name);
     class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
     // DH_input = popen(pth->command_DH, "r"); //currently not working
     // class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
     class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
   } else {
-    printf("%s\n",  pth->DH_file_name);
     class_open(DH_input, pth->DH_file_name, "r", pth->error_message);
   }
 

@@ -3931,7 +3931,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                errmsg);
     strcat(pth->DH_file_name,"./DH_interface/");
     strcat(pth->DH_file_name, string1);
-    strcat(pth->DH_file_name,"_CLASSformat.txt");
+   strcat(pth->DH_file_name,"_CLASSformat.txt");
     class_call(parser_read_string(pfc,"distort",&string2,&flag1,errmsg),
                errmsg,
                errmsg);
@@ -3969,9 +3969,8 @@ int input_read_parameters_injection(struct file_content * pfc,
       strcat(pth->DH_file_name,"./DH_interface/");
       strcat(pth->DH_file_name, string1);
       strcat(pth->DH_file_name,"_CLASSformat.txt");
-      printf("input pth->DH_file_name %s\n", pth->DH_file_name);
       strcat(pth->command_DH, string1);
-      strcat(pth->command_DH, "_CLASSformat.txt");
+      // strcat(pth->command_DH, "_CLASSformat.txt");
       if(pin->DM_annihilation_efficiency > 0){
         strcat(pth->command_DH," --DM_process 'swave'");
         sprintf(string2,"");

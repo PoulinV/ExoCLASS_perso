@@ -2299,6 +2299,7 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
     class_open(DH_input, pth->DH_dist_file_name, "r", pth->error_message);
     class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
   }else{
+    // printf("here!! %s\n",pth->DH_dist_file_name);
     class_open(DH_input,pth->DH_dist_file_name  , "r", psd->error_message);
   }
 
