@@ -17,3 +17,4 @@ doc/manual/latex
 DH_interface/tf_mock_data.dat
 DH_interface/*.obj
 DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.dat
+DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.dat
