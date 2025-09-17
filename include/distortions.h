@@ -322,6 +322,7 @@ extern "C" {
                         struct distortions * psd
                       );
  int injection_read_DH_distortions_from_file( struct distortions * psd,struct thermodynamics * th);
+ int injection_read_SM_distortions_from_file( struct distortions * psd,struct thermodynamics * th);
 #ifdef __cplusplus
 }
 #endif

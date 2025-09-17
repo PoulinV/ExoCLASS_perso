@@ -126,6 +126,7 @@ def accreting_PBH( PBH_mass, recipe, transfer_functions, logEnergies=None, redsh
 	if redshift is None: redshift = get_redshift()
 
 	model_from_file = accreting_model(PBH_mass,recipe, logEnergies, redshift, **DarkOptions)
+	redshift = [redshift[i] for i in 8*np.arange(0,52)]##52 is chosen to sum over oscillations of period 8 bins in the new file
 
 	print_feff = DarkOptions.get("print_f_eff", False)
 	if not print_feff:
@@ -187,6 +188,7 @@ def evaporating_PBH( PBH_mass_ini, transfer_functions, logEnergies=None, redshif
 	if redshift is None: redshift = get_redshift()
 
 	model_from_file = evaporating_model(PBH_mass_ini,logEnergies,redshift, **DarkOptions)
+	redshift = [redshift[i] for i in 8*np.arange(0,52)]##52 is chosen to sum over oscillations of period 8 bins in the new file
 
 	print_feff = DarkOptions.get("print_f_eff", False)
 	if not print_feff:
@@ -266,10 +268,13 @@ def loading_from_specfiles(fnames, transfer_functions, spectral_distortions,mass
 
 	if logEnergies is None: logEnergies = get_logEnergies()
 	if redshift is None: redshift = get_redshift()
+
 	model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
+	redshift = [redshift[i] for i in 8*np.arange(0,52)]##52 is chosen to sum over oscillations of period 8 bins in the new file
 
 
 	print_feff = DarkOptions.get("print_f_eff", False)
+	# print(len(redshift))
 	if not print_feff:
 		f_function = np.zeros( shape=(len(channel_dict),len(redshift)), dtype=np.float64 )
 		for channel in channel_dict:

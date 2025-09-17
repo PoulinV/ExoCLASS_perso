@@ -4245,7 +4245,15 @@ int input_read_parameters_injection(struct file_content * pfc,
 
         // strcat(pth->command_DH," --init_distort_file DH_interface/dummyfile.dat");
 
-        strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+          class_call(parser_read_string(pfc,"output_sd_at_highz",&string3,&flag3,errmsg),
+                     errmsg,
+                     errmsg);
+
+        if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+            strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+        }else{
+          strcat(pth->command_DH," --init_distort_file DH_interface/dummyfile.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+        }
         strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         class_call(parser_read_string(pfc,
                                       "DH_file_name",
@@ -4254,7 +4262,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                                       errmsg),
                    errmsg,
                    errmsg);
-        strcat(pth->DH_dist_file_name,"./DH_interface/");
+        strcat(pth->DH_dist_file_name,"./DH_interface/"); 
         strcat(pth->DH_dist_file_name, string1);
         strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
 

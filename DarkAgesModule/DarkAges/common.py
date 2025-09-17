@@ -228,10 +228,12 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 		need_to_interpolate = True
 
 	energy_integral = np.zeros( shape=(len(z_dep),len(z_inj)), dtype=np.float64)
+	#print(len(energy_integral))
 	Enj = logConversion(transfer_functions_log10E)
-	for i in range(len(energy_integral)):
+	for i in range(len(z_dep)):
+		low= np.searchsorted(z_inj, z_dep[i])
 		if how_to_integrate == 'logE':
-			for k in range(i,len(energy_integral[i])):
+			for k in range(len(z_inj[low:])):
 				if not need_to_interpolate:
 					int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
 					int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
@@ -240,36 +242,82 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 					int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
 				energy_integral[i][k] = trapz( int_phot + int_elec, log10E )
 		elif how_to_integrate == 'energy':
-			for k in range(i,len(energy_integral[i])):
-				if not need_to_interpolate:
-					int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
-					int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
-				else:
-					int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
-					int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**1)
-				if len(E) > 1:
-					energy_integral[i][k] = trapz( int_phot + int_elec, E )
-				else:
-					energy_integral[i][k] = int_phot + int_elec
+			for k in range(low,len(z_inj)):
+			             if not need_to_interpolate:
+			                          int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
+			                          int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
+			             else:
+			                          int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
+			                          int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**1)
+			             if len(E) > 1:
+			                          energy_integral[i][k] = trapz( int_phot + int_elec, E )
+			             else:
+			                          energy_integral[i][k] = int_elec
+
+                                      # int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
+                            #     int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
+                            #     int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
+                            # else:
+                            #     int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
+                            #     int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**1)
+                            # if len(E) > 1:
+                            #     energy_integral[i][k] = trapz( int_phot + int_elec, E )
+                            # else:
+                            #     #energy_integral[i][k] = int_phot + int_elec
+                            #     energy_integral[i][k] = int_elec
+                            #     #print(int_phot,int_elec,E)
+
+#			for k in range(i,len(energy_integral[i])):
+			#print(len(z_inj[low:]))
+			# for k in range(low,len(z_inj)):
+            # # for k in range(len(z_inj[low:])):
+            #     #print(z_dep[i],z_inj[k])
+            #     if not need_to_interpolate:
+            #         int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
+            #         int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
+            #     else:
+            #         int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
+            #         int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**1)
+            #     if len(E) > 1:
+            #         energy_integral[i][k] = trapz( int_phot + int_elec, E )
+            #     else:
+            #         #energy_integral[i][k] = int_phot + int_elec
+            #         energy_integral[i][k] = int_elec
+            #         #print(int_phot,int_elec,E)
 
 	z_integral = np.zeros_like( z_dep, dtype=np.float64)
 	dummy = np.arange(1,len(z_inj)+1)
 	for i in range(len(z_integral)):
-		low = max(i,0)
+		###OLD STUFF
+		#low = max(i,0)
 		#low = i
+		#integrand = ( conversion(z_inj[low:], alpha=alpha) )*energy_integral[i,low:]
+		###NEW STUFF
+		low= np.searchsorted(z_inj, z_dep[i])
+		# print(i,energy_integral[i,low:])
 		integrand = ( conversion(z_inj[low:], alpha=alpha) )*energy_integral[i,low:]
-		#z_integral[i] = trapz( integrand, dummy[low:] )
+        # print(integrand,energy_integral[i,low:])
+        #z_integral[i] = trapz( integrand, dummy[low:] )
 		z_integral[i] = integrand.sum()
 
 	result = np.empty_like( norm, dtype=np.float64 )
 	for i in range(len(norm)):
 		if norm[i] != 0 and abs(z_integral[i]) < np.inf :
 			result[i] = (z_integral[i] / norm[i])
+			# print(z_dep[i],  z_integral[i] ,norm[i])
 		else:
 			#result[i] = np.nan
 			result[i] = 0.
 
-	return result
+    	#trick by T. Slatyer to avoid spurious oscillations.
+	#next couple of lines are for illustration, we can certainly do a more careful rebinning
+     	#take every 8th deposition redshift as the new abscissa #first rough approximation to matching the bin width - just sum up every eight deposition bins
+
+	resultsum=[np.sum(result[i:i+7]) for i in 8*np.arange(0,52)]
+	# print(resultsum)
+
+
+	return resultsum
 
 def evaluate_transfer(E_original, transfer_function ,E_interp):
 	u"""Takes the transfer functions :math:`T(z_\\mathrm{dep.}, E, z_\\mathrm{inj.})`
@@ -317,7 +365,7 @@ def evaluate_transfer(E_original, transfer_function ,E_interp):
 	result[mask3] = 0.
 	mask4 =  E_interp >= E_original[-1]
 	result[mask4] = transfer_function[-1]
-
+#	print(result)
 	return result
 def evaluate_spectral_distortion_transfer(E_original, transfer_function ,E_interp):
 	u"""Takes the transfer functions :math:`T(z_\\mathrm{dep.}, E, z_\\mathrm{inj.})`

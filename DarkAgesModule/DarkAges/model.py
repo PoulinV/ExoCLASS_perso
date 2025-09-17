@@ -95,6 +95,9 @@ class model(object):
                                 transfer_instance.transfer_elec,
                                 self.spec_photons, self.spec_electrons, alpha=self.alpha_to_use, **DarkOptions)
 
+			red = [red[i] for i in 8*np.arange(0,52)]
+			# print(len(red), len(f_func))
+
 			return np.array([red, f_func], dtype=np.float64)
 
 	def save_f(self,transfer_instance, filename, **DarkOptions):
