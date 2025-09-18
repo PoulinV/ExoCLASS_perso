@@ -256,8 +256,8 @@ def _transfer_init_and_dump():
 	global transfer_functions_corr
 	for channel in list(channel_dict.keys()):
 		idx = channel_dict.get(channel)
-		transfer_functions[idx] = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/tf_eps-8_Ch{:d}.dat'.format(idx+1)))
-		transfer_dump(transfer_functions[idx], os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_eps-8_Ch{:d}.obj'.format(idx+1)))
+		transfer_functions[idx] = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/tf_new_Ch{:d}.dat'.format(idx+1)))
+		transfer_dump(transfer_functions[idx], os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_new_Ch{:d}.obj'.format(idx+1)))
 	transfer_functions_corr = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/Transfer_Corr.dat'))
 	transfer_dump(transfer_functions_corr, os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/transfer_Corr.obj'))
 
@@ -267,7 +267,7 @@ def _transfer_load_from_dump():
 	for channel in list(channel_dict.keys()):
 		idx = channel_dict.get(channel)
 		# print(idx)
-		transfer_functions[idx] = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/tf_eps-8_Ch{:d}.obj'.format(idx+1)) )
+		transfer_functions[idx] = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/tf_new_Ch{:d}.obj'.format(idx+1)) )
 	transfer_functions_corr = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/transfer_Corr.obj') )
 
 #################################
@@ -277,7 +277,7 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 
 	transfer_is_initialized = True
 	for i in range(5):
-		transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_eps-8_Ch{:d}.obj'.format(i+1)))
+		transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_new_Ch{:d}.obj'.format(i+1)))
 	transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/transfer_Corr.obj'))
 
 	if not transfer_is_initialized:

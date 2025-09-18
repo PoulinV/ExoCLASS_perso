@@ -60,11 +60,6 @@ int distortions_init(struct precision * ppr,
     //if we run with DarkAges module, automatically go to step 2 of the DH calculation.
     pth->run_DH_with_SD = _TRUE_;
     psd->loop_over_CLASS_for_DH = 1;
-    psd->add_SD_to_CLASS = _TRUE_; //by default, DarkAges compute the "residual distortion". We add that to the CLASS output.
-  }else{
-    pth->run_DH_with_SD = _FALSE_;
-    psd->loop_over_CLASS_for_DH = 1;
-    psd->add_SD_to_CLASS = _TRUE_; //by default, DarkAges compute the "residual distortion". We add that to the CLASS output.
   }
 
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
@@ -76,7 +71,7 @@ int distortions_init(struct precision * ppr,
   else if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 1){
     //We have already output the file! no need to do it again.
     psd->output_sd_at_highz = _FALSE_;
-    psd->add_SD_to_CLASS = _TRUE_; //with DH we compute the full distortions starting from what CLASS has computed down to z=3000. We thus overwrite the output of CLASS instead of adding to it
+    // psd->add_SD_to_CLASS = _TRUE_; //with DH we compute the full distortions starting from what CLASS has computed down to z=3000. We thus overwrite the output of CLASS instead of adding to it
 
     //this means we are using DH to compute distortions. Now read in those distortions.
     class_call(injection_read_DH_distortions_from_file(psd,pth),
@@ -89,11 +84,6 @@ int distortions_init(struct precision * ppr,
              psd->error_message,
              psd->error_message);
   }
-  
-  // class_call(injection_read_DH_distortions_from_file(psd),
-  //          psd->error_message,
-  //          psd->error_message);
-
   /** Assign values to all indices in the distortions structure */
   class_call(distortions_indices(psd),
              psd->error_message,
@@ -863,7 +853,7 @@ int distortions_compute_heating_rate(struct precision* ppr,
   for (index_z=0; index_z<psd->z_size; ++index_z){
     if(psd->z[index_z] < psd->z_output_sd){
       //ignore distortions if z < z_min; useful to compute the distortions created by injection up to a given z.
-      printf("psd->z[index_z] %e \n", psd->z[index_z]);
+      // printf("psd->z[index_z] %e \n", psd->z[index_z]);
       psd->dQrho_dz_tot[index_z] = 0;
     }else{
       /** Import quantities from background structure */

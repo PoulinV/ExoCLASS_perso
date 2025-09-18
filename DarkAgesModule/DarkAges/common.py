@@ -252,7 +252,7 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 			             if len(E) > 1:
 			                          energy_integral[i][k] = trapz( int_phot + int_elec, E )
 			             else:
-			                          energy_integral[i][k] = int_elec
+			                          energy_integral[i][k] = int_elec+int_phot
 
                                       # int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
                             #     int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
@@ -313,11 +313,11 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 	#next couple of lines are for illustration, we can certainly do a more careful rebinning
      	#take every 8th deposition redshift as the new abscissa #first rough approximation to matching the bin width - just sum up every eight deposition bins
 
-	resultsum=[np.sum(result[i:i+7]) for i in 8*np.arange(0,52)]
+	result=[np.sum(result[i:i+7]) for i in 8*np.arange(0,52)]
 	# print(resultsum)
 
 
-	return resultsum
+	return result
 
 def evaluate_transfer(E_original, transfer_function ,E_interp):
 	u"""Takes the transfer functions :math:`T(z_\\mathrm{dep.}, E, z_\\mathrm{inj.})`
@@ -637,6 +637,7 @@ def finalize(redshift, f_heat, f_lya, f_ionH, f_ionHe, f_lowE, **DarkOptions):
 	last_idx = int(DarkOptions.get('last_index',0))
 
 	last = len(redshift) - last_idx
+	# print(redshift)
 	min_z = DarkOptions.get('lower_z_bound',0.)
 	max_z = DarkOptions.get('upper_z_bound',5.01e6)
 	sys.stdout.write(50*'#'+'\n')

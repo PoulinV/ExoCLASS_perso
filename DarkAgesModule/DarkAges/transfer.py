@@ -37,20 +37,22 @@ class transfer(object):
 			in increasing order.
 		"""
 
-		#print 'Initializing the transfer functions'
+		print('Initializing the transfer functions')
 		data = np.genfromtxt(infile, unpack=True, usecols=(0,1,2,3,4), dtype=np.float64 )
 		self.z_injected = np.unique(data[2]).astype(np.float64)
 		self.z_deposited = np.unique(data[0]).astype(np.float64)
 #		self.z_injected = np.unique(data[2]).astype(np.float64)[::-1]
 #		self.z_deposited = np.unique(data[0]).astype(np.float64)[::-1]
 		# print(self.z_deposited,self.z_injected)
-		self.log10E = np.unique(data[1]).astype(np.float64)
+		# self.log10E = np.unique(data[1]).astype(np.float64)
+		self.log10E = np.unique(np.log10(data[1])).astype(np.float64)
 		l1 = len(self.z_deposited)
 		l2 = len(self.log10E)
 		l3 = len(self.z_injected)
 		# print(l1,l2,l3)
 		self.transfer_phot = data[4].reshape(l1,l2,l3).astype(np.float64)
 		self.transfer_elec = data[3].reshape(l1,l2,l3).astype(np.float64)
+		# print(len(self.transfer_elec[:,0,0]),len(self.transfer_elec[0,0,:]))
 #		print(self.transfer_phot[0,0,0],self.transfer_elec[0,0,0])
 
 	def __add__(self,other):
