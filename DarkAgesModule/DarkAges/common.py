@@ -313,7 +313,7 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 	#next couple of lines are for illustration, we can certainly do a more careful rebinning
      	#take every 8th deposition redshift as the new abscissa #first rough approximation to matching the bin width - just sum up every eight deposition bins
 
-	result=[np.sum(result[i:i+7]) for i in 8*np.arange(0,52)]
+	# result=[np.sum(result[i:i+7]) for i in 8*np.arange(0,52)]
 	# print(resultsum)
 
 

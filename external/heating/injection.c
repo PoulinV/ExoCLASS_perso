@@ -1549,7 +1549,6 @@ int injection_read_chi_z_from_file(struct precision* ppr,
 
       /* If the line contains data, we must interprete it. If num_lines == 0 , the current line must contain
          its value. Otherwise, it must contain (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE). */
-
       /* Read num_lines, infer size of arrays and allocate them */
       class_test(sscanf(line,"%d",&(pin->chiz_size)) != 1,
                  pin->error_message,

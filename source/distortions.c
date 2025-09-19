@@ -768,15 +768,22 @@ int distortions_compute_branching_ratios(struct precision * ppr,
 
     /* Interpolate over z */
     for (index_z=0; index_z<psd->z_size; ++index_z){
-      class_call(distortions_interpolate_br_data(psd,
-                                                 psd->z[index_z],
-                                                 &f_g,
-                                                 &f_y,
-                                                 &f_mu,
-                                                 f_E,
-                                                 &last_index),
-                 psd->error_message,
-                 psd->error_message);
+      if(psd->z[index_z]>=psd->br_exact_z[0]){
+        class_call(distortions_interpolate_br_data(psd,
+                                                   psd->z[index_z],
+                                                   &f_g,
+                                                   &f_y,
+                                                   &f_mu,
+                                                   f_E,
+                                                   &last_index),
+                   psd->error_message,
+                   psd->error_message);
+      }else{
+        f_g = 0;
+        f_y = 1;
+        f_mu = 0;
+      }
+
 
       /* Store quantities in the table*/
       psd->br_table[psd->index_type_g][index_z] = f_g;
@@ -1701,7 +1708,7 @@ int distortions_interpolate_br_data(struct distortions* psd,
   //   z=psd->br_exact_z[0];
   // }
   z+=1e-5;//VP: added to avoid bug, sometimes z is slightly below psd->br_exact_z[0];
-  // printf("z = %g,psd->br_exact_z[0] %e\n",z,psd->br_exact_z[0]);
+  // printf("z = %g,psd->br_exact_z[0] %e psd->f_g_exact %e y %e mu %e\n",z,psd->br_exact_z[0],psd->f_g_exact[0],psd->f_y_exact[0],psd->f_mu_exact[0]);
 
   class_call(array_spline_hunt(psd->br_exact_z,
                                psd->br_exact_Nz,
