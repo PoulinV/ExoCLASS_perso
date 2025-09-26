@@ -3766,7 +3766,6 @@ int input_read_parameters_injection(struct file_content * pfc,
             sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
             strcat(pin->command_fz,string2);
             strcat(pin->command_fz," --n_cdm=");
-	printf("pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_%e pin->DM_decay_mass %e",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_,pin->DM_decay_mass);
             sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_decay_mass); //in per cm^3
             strcat(pin->command_fz,string2);
 
@@ -5990,7 +5989,9 @@ int input_read_parameters_distortions(struct file_content * pfc,
 
   if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
       psd->include_DH_SMresidual_distortions = _TRUE_;
-      strcat(psd->DH_SMresiduals_file_name,"./DH_interface/baseline_nmax200_exclude_y.txt");
+      sprintf(psd->DH_SMresiduals_file_name,"");
+      strcat(psd->DH_SMresiduals_file_name,__CLASSDIR__);
+      strcat(psd->DH_SMresiduals_file_name,"/DH_interface/baseline_nmax200_exclude_y.txt");
   }else{
     psd->include_DH_SMresidual_distortions = _FALSE_;
   }
