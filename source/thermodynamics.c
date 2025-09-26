@@ -2651,8 +2651,9 @@ int thermodynamics_derivs(
   /** - Derivative of the ionization fractions */
   x_H = ptdw->x_H;
   x_He = ptdw->x_He;
-  x = ptdw->x_noreio;
-
+  // if(ptdw->x_noreio < 1.0 && isnan(ptdw->x_noreio)==_FALSE_)x = ptdw->x_noreio;
+  // else x = 1.0;
+x = ptdw->x_noreio;
   /** - If needed, calculate heating effects (i.e. any possible energy deposition rates
       affecting the evolution equations for x and Tmat) */
 
@@ -2713,7 +2714,12 @@ int thermodynamics_derivs(
   /** - Derivative of the matter temperature (relevant for both Recfast and HyRec cases) */
 
   /* Restore the real x for the temperature equations. */
-  x = ptdw->x_reio;
+  if (pth->has_exotic_injection == _FALSE_) {
+    x = ptdw->x_reio;
+    //VP: if there is exotic energy injection we want to compute the true effect on the temperature and not that of the artificial reio model.
+    //also it tends to lead to a bug when injection is too strong otherwise.
+  }
+
 
   /** - Calculate quantities for interacting dark matter */
   if (pba->has_idm == _TRUE_ || pba->has_idr == _TRUE_) {
@@ -4079,6 +4085,8 @@ int thermodynamics_ionization_fractions(
     ptdw->x_H = 1.;
     ptdw->x_He = 1.;
 
+    //initial condition for later
+    ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = 0.0 ;
   }
   /** - --> second regime: first Helium recombination (analytic approximation) */
   else if (current_ap == ptdw->index_ap_He1) {
@@ -4182,8 +4190,8 @@ int thermodynamics_ionization_fractions(
 
     if(ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] == 0.0){
       /* set x from the evolver (which is very low ~10^-4) as 'xe_before' */
+      //VP: this needs to be set only one time. Otherwise can lead to a problem with exotic energy injection.
       ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = x;
-      // printf("x %e\n",x);
     }
 
     /* compute x */
@@ -4192,11 +4200,18 @@ int thermodynamics_ionization_fractions(
                pth->error_message);
   }
 
-  // if()
+    //VP: implement a simple matching in case we have exotic energy injection leading to early reio.
+    //we take the largest value of xe between the reionization scheme (e.g. tanh) and the exotic energy injection.
+    //necessary to prevent a bug when too large energy injection.
+    if(x>ptdw->x_noreio){
+      ptdw->x_reio = x;
+      // printf("stars dominate: z %e x %e \n",z,x);
+    }
+    else {
+      ptdw->x_reio = ptdw->x_noreio;
+      // printf("DM dominate: z %e x %e  after %e \n",z,ptdw->x_noreio,ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_after]+ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_helium_fullreio_fraction]);
+    }
 
-  // ptdw->x_reio = x;
-  ptdw->x_reio = fmax(x,ptdw->x_noreio);
-  // ptdw->x_reio = (x > ptdw->x_noreio) ? x : ptdw->x_noreio;
 
   return _SUCCESS_;
 }

@@ -6671,7 +6671,7 @@ int input_default_params(struct background *pba,
   // class_sprintf(pin->chi_z_file,"external/heating/example_chiz_file.dat");
   class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
   // class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
-
+  pin->include_reionization_from_stars = _FALSE_;
   /**
    * Default to input_read_parameters_nonlinear
    */
