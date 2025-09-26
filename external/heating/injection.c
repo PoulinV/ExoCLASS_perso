@@ -1581,8 +1581,12 @@ int injection_read_chi_z_from_file(struct precision* ppr,
                index_z+headlines,chi_z_file);
   }
 
-  fclose(fA);
-
+  // fclose(fA);
+  if(pin->f_eff_type == DarkAges){
+    pclose(fA);
+  }else{
+    fclose(fA);
+  }
   /* Spline in one dimension */
   for(index_dep=0;index_dep<pin->dep_size;++index_dep){
     class_call(array_spline(pin->chiz_table,

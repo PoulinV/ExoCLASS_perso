@@ -2307,12 +2307,14 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
     }
     fflush(DH_input);
 
-    system(pin->command_fz);
     // class_sprintf(pth->DH_dist_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
-    sprintf(pth->DH_dist_file_name,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
-    strcat(pth->DH_dist_file_name,__CLASSDIR__);
-    strcat(pth->DH_dist_file_name,"/DarkAgesModule/output_DarkAges_dist.tmp.dat");
-    class_open(DH_input, pth->DH_dist_file_name, "r", pth->error_message);
+    DH_input = popen(pin->command_fz, "r");
+
+    // system(pin->command_fz);
+    // sprintf(pth->DH_dist_file_name,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
+    // strcat(pth->DH_dist_file_name,__CLASSDIR__);
+    // strcat(pth->DH_dist_file_name,"/DarkAgesModule/output_DarkAges_dist.tmp.dat");
+    // class_open(DH_input, pth->DH_dist_file_name, "r", pth->error_message);
     class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
   }else{
     // printf("here!! %s\n",pth->DH_dist_file_name);
@@ -2361,8 +2363,13 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
                "could not read value of parameters coefficients in line %i in file '%s'\n",
                headlines,pth->DH_dist_file_name);
   }
+  if(psd->run_DarkAges_with_distortions){
+    pclose(DH_input);
+  }
+  else{
+    fclose(DH_input);
+  }
 
-  fclose(DH_input);
 
 
 

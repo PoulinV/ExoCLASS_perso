@@ -279,11 +279,14 @@ def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions)
     #     sys.stdout.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
     # # sys.stdout.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
     # f = open('DarkAgesModule/output_DarkAges_dist.tmp.dat','wt')
-    f = open(os.path.join(os.environ['DARKAGES_BASE'],'output_DarkAges_dist.tmp.dat'),'wt')
+    # f = open(os.path.join(os.environ['DARKAGES_BASE'],'output_DarkAges_dist.tmp.dat'),'wt')
 
-    f.write(50*'#'+'\n')
-    f.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
-    f.write(50*'#'+'\n\n')
+    sys.stdout.write(50*'#'+'\n')
+    sys.stdout.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
+    sys.stdout.write(50*'#'+'\n\n')
+    # f.write(50*'#'+'\n')
+    # f.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
+    # f.write(50*'#'+'\n\n')
     # f.write('{:.2e}\t{:.4e}\n'.format(min_nu,spectral_distortions[first]))
     apply_smoothing = DarkOptions.get('apply_smoothing',False)
     if apply_smoothing is False:
@@ -294,10 +297,10 @@ def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions)
         min_nu = DarkOptions.get('lower_E_bound',0.) ##to be updated
         max_nu = DarkOptions.get('upper_E_bound',5.01e6)
         # Define the number of bins
-        f.write('# 1:Frequency nu [GHz]     2:SD_tot\n\n{:d}\n\n'.format((last-first+1)))
+        sys.stdout.write('# 1:Frequency nu [GHz]     2:SD_tot\n\n{:d}\n\n'.format((last-first+1)))
         for idx in range(len(frequency)):
         # for idx in range(first,last):
-            f.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
+            sys.stdout.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
         # f.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
     else:
         original_bins = len(frequency)
@@ -311,9 +314,14 @@ def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions)
             np.mean(spectral_distortions[i*bins_per_group:(i+1)*bins_per_group])
             for i in range(new_bins)
         ])
-        f.write('# 1:Frequency nu [GHz]     2:SD_tot\n\n{:d}\n\n'.format(len(freq_smooth)))
+        # f.write('# 1:Frequency nu [GHz]     2:SD_tot\n\n{:d}\n\n'.format(len(freq_smooth)))
+        # for idx in range(len(freq_smooth)):
+        # # for idx in range(first,last):
+        #     f.write('{:.5e}\t{:.4e}\n'.format(freq_smooth[idx],dist_smooth[idx]))
+        # # f.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
+        sys.stdout.write('# 1:Frequency nu [GHz]     2:SD_tot\n\n{:d}\n\n'.format(len(freq_smooth)))
         for idx in range(len(freq_smooth)):
         # for idx in range(first,last):
-            f.write('{:.5e}\t{:.4e}\n'.format(freq_smooth[idx],dist_smooth[idx]))
+            sys.stdout.write('{:.5e}\t{:.4e}\n'.format(freq_smooth[idx],dist_smooth[idx]))
         # f.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
-    f.close()
+    # f.close()
