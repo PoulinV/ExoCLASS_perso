@@ -278,7 +278,9 @@ def spectral_distortions_finalize(frequency,spectral_distortions, **DarkOptions)
     # # for idx in range(first,last):
     #     sys.stdout.write('{:.5e}\t{:.4e}\n'.format(frequency[idx],spectral_distortions[idx]))
     # # sys.stdout.write('{:.5e}\t{:.4e}\n'.format(max_nu,spectral_distortions[last-1]))
-    f = open('DarkAgesModule/output_DarkAges_dist.tmp.dat','wt')
+    # f = open('DarkAgesModule/output_DarkAges_dist.tmp.dat','wt')
+    f = open(os.path.join(os.environ['DARKAGES_BASE'],'output_DarkAges_dist.tmp.dat'),'wt')
+
     f.write(50*'#'+'\n')
     f.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
     f.write(50*'#'+'\n\n')

@@ -136,6 +136,9 @@ int distortions_free(struct distortions * psd) {
     free(psd->z_weights);
     free(psd->x);
     free(psd->x_weights);
+    if(psd->loop_over_CLASS_for_DH == 1){
+       free(psd->DH_dist_table);
+    }
 
     /** Delete noise file */
     if (psd->has_detector_file == _TRUE_) {
@@ -2305,8 +2308,10 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
     fflush(DH_input);
 
     system(pin->command_fz);
-    class_sprintf(pth->DH_dist_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
-
+    // class_sprintf(pth->DH_dist_file_name,"DarkAgesModule/output_DarkAges_dist.tmp.dat");
+    sprintf(pth->DH_dist_file_name,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
+    strcat(pth->DH_dist_file_name,__CLASSDIR__);
+    strcat(pth->DH_dist_file_name,"/DarkAgesModule/output_DarkAges_dist.tmp.dat");
     class_open(DH_input, pth->DH_dist_file_name, "r", pth->error_message);
     class_test(DH_input == NULL, pth->error_message, "The program failed to set the environment for the external command.");
   }else{

@@ -3766,6 +3766,7 @@ int input_read_parameters_injection(struct file_content * pfc,
             sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
             strcat(pin->command_fz,string2);
             strcat(pin->command_fz," --n_cdm=");
+	printf("pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_%e pin->DM_decay_mass %e",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_,pin->DM_decay_mass);
             sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_decay_mass); //in per cm^3
             strcat(pin->command_fz,string2);
 
@@ -4262,7 +4263,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                                       errmsg),
                    errmsg,
                    errmsg);
-        strcat(pth->DH_dist_file_name,"./DH_interface/"); 
+        strcat(pth->DH_dist_file_name,"./DH_interface/");
         strcat(pth->DH_dist_file_name, string1);
         strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
 
@@ -6453,6 +6454,7 @@ int input_default_params(struct background *pba,
   pth->recombination=hyrec;
   pth->recfast_photoion_mode=recfast_photoion_Tmat;
 
+  pth->run_DH_with_SD = _FALSE_;
   /** 8) Parametrization of reionization */
   pth->reio_parametrization=reio_camb;
   /** 8.a) 'reio_camb' or 'reio_half_tanh' case */

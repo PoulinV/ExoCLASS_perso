@@ -4179,8 +4179,12 @@ int thermodynamics_ionization_fractions(
   /** - If z is during reionization, also calculate the reionized x */
   if (current_ap == ptdw->index_ap_reio) {
 
-    /* set x from the evolver (which is very low ~10^-4) as 'xe_before' */
-    ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = x;
+
+    if(ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] == 0.0){
+      /* set x from the evolver (which is very low ~10^-4) as 'xe_before' */
+      ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = x;
+      // printf("x %e\n",x);
+    }
 
     /* compute x */
     class_call(thermodynamics_reionization_function(z,pth,ptw->ptrp,&x),
@@ -4188,7 +4192,11 @@ int thermodynamics_ionization_fractions(
                pth->error_message);
   }
 
-  ptdw->x_reio = x;
+  // if()
+
+  // ptdw->x_reio = x;
+  ptdw->x_reio = fmax(x,ptdw->x_noreio);
+  // ptdw->x_reio = (x > ptdw->x_noreio) ? x : ptdw->x_noreio;
 
   return _SUCCESS_;
 }
@@ -4255,6 +4263,11 @@ int thermodynamics_reionization_function(
 
       *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
         *(tanh(argument)+1.)/2.;
+      // printf("xe before = %e xe after = %e  xe reio = %e, xe he reio = %e \n",preio->reionization_parameters[preio->index_re_xe_before],preio->reionization_parameters[preio->index_re_xe_after],(preio->reionization_parameters[preio->index_re_xe_after]
+      //       -preio->reionization_parameters[preio->index_re_xe_before])
+      //   *(tanh(argument)+1.)/2.
+      //   +preio->reionization_parameters[preio->index_re_xe_before],preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
+      //     *(tanh(argument)+1.)/2.);
     }
     break;
 

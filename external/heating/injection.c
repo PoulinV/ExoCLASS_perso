@@ -283,6 +283,9 @@ int injection_free(struct thermodynamics* pth){
   if(pin->f_eff_type == DarkAges && pin->chi_type != no_factorization){
     free(pin->feff_table);
   }
+  if(pin->f_eff_type == DarkAges && pin->chi_type == no_factorization){
+    free(pin->chiz_table);
+  }
   if(pin->chi_type == chi_from_z_file){
     free(pin->chiz_table);
   }
