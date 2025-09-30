@@ -44,8 +44,8 @@ class transfer(object):
 #		self.z_injected = np.unique(data[2]).astype(np.float64)[::-1]
 #		self.z_deposited = np.unique(data[0]).astype(np.float64)[::-1]
 		# print(self.z_deposited,self.z_injected)
-		# self.log10E = np.unique(data[1]).astype(np.float64)
-		self.log10E = np.unique(np.log10(data[1])).astype(np.float64)
+		self.log10E = np.unique(data[1]).astype(np.float64)
+		# self.log10E = np.unique(np.log10(data[1])).astype(np.float64)
 		l1 = len(self.z_deposited)
 		l2 = len(self.log10E)
 		l3 = len(self.z_injected)

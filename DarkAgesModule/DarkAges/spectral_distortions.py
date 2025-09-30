@@ -43,7 +43,7 @@ class spectral_distortions(object):
         data = np.genfromtxt(infile, unpack=True, usecols=(0,1,2,3,4), dtype=np.float64 )
         self.z_injected = np.unique(data[0]).astype(np.float64)
         self.frequency = np.unique(data[1]).astype(np.float64)
-        self.E_injected = np.unique(data[2]).astype(np.float64)
+        self.E_injected = np.unique(pow(10,data[2])).astype(np.float64)
         l1 = len(self.z_injected)
         l2 = len(self.frequency)
         l3 = len(self.E_injected)

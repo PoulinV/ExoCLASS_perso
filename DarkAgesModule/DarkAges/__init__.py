@@ -256,8 +256,8 @@ def _transfer_init_and_dump():
 	global transfer_functions_corr
 	for channel in list(channel_dict.keys()):
 		idx = channel_dict.get(channel)
-		transfer_functions[idx] = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/tf_new_summed_Ch{:d}.dat'.format(idx+1)))
-		transfer_dump(transfer_functions[idx], os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_new_summed_Ch{:d}.obj'.format(idx+1)))
+		transfer_functions[idx] = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/tf_final_summed_Ch{:d}.dat'.format(idx+1)))
+		transfer_dump(transfer_functions[idx], os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(idx+1)))
 	transfer_functions_corr = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/Transfer_Corr.dat'))
 	transfer_dump(transfer_functions_corr, os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/transfer_Corr.obj'))
 
@@ -267,7 +267,7 @@ def _transfer_load_from_dump():
 	for channel in list(channel_dict.keys()):
 		idx = channel_dict.get(channel)
 		# print(idx)
-		transfer_functions[idx] = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/tf_new_summed_Ch{:d}.obj'.format(idx+1)) )
+		transfer_functions[idx] = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(idx+1)) )
 	transfer_functions_corr = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/transfer_Corr.obj') )
 
 #################################
@@ -277,7 +277,7 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 
 	transfer_is_initialized = True
 	for i in range(5):
-		transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_new_summed_Ch{:d}.obj'.format(i+1)))
+		transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(i+1)))
 	transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/transfer_Corr.obj'))
 
 	if not transfer_is_initialized:
@@ -292,12 +292,12 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 #
 def _spectral_distortions_init_and_dump():
 	global spectral_distortions_functions
-	spectral_distortions_functions = spectral_distortions(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.dat'))
-	spectral_distortions_dump(spectral_distortions_functions, os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.obj'))
+	spectral_distortions_functions = spectral_distortions(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.dat'))
+	spectral_distortions_dump(spectral_distortions_functions, os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.obj'))
 
 def _spectral_distortions_load_from_dump():
 	global spectral_distortions_functions
-	spectral_distortions_functions = spectral_distortions_load( os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.obj') )
+	spectral_distortions_functions = spectral_distortions_load( os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.obj') )
 
 #################################
 
@@ -306,7 +306,7 @@ if (spectral_distortions_functions is None):
 	spectral_distortions_functions = np.empty(shape=1, dtype=spectral_distortions)
 
 	spectral_distortions_is_initialized = True
-	spectral_distortions_is_initialized = spectral_distortions_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.obj'))
+	spectral_distortions_is_initialized = spectral_distortions_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.obj'))
 
 	if not spectral_distortions_is_initialized:
 		print_info('The spectral distortion function seem not to be initialized. This will be done now. this may take a few seconds.')
