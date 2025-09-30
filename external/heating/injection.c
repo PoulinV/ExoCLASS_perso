@@ -403,6 +403,7 @@ int injection_calculate_at_z(struct background* pba,
    /** - VP: if necessary, add in the effect of stars to model reionization realistically*/
 
    class_call(injection_energy_injection_from_stars_at_z(pin,
+                                                        pth,
                                                         z,
                                                         x_H,
                                                         x_He),
@@ -440,6 +441,7 @@ int injection_calculate_at_z(struct background* pba,
  * @return the error status
  */
 int injection_energy_injection_from_stars_at_z(struct injection* pin,
+                                    struct thermodynamics* pth,
                                     double z,
                                     double x_H,
                                     double x_He){
@@ -527,10 +529,22 @@ for(index_dep=0; index_dep<pin->stars_photoion_dep_size; ++index_dep){
     // if(pin->stars_photoheat_rate[pin->index_stars_dep_HeI] <0)pin->stars_photoheat_rate[pin->index_stars_dep_HeI]=0;
     // if(pin->stars_photoheat_rate[pin->index_stars_dep_HeII] <0)pin->stars_photoheat_rate[pin->index_stars_dep_HeII]=0;
     // pin->pvecdeposition[pin->index_dep_ionH] += pin->stars_photoion_rate[pin->index_stars_dep_H]*pin->nH*(_E_H_ion_*_eV_)*x_H;
-    pin->pvecdeposition[pin->index_dep_ionH] += pin->stars_photoion_rate[pin->index_stars_dep_H]*pin->nH*(_E_H_ion_*_eV_)*(1-x_H);
-    // pin->pvecdeposition[pin->index_dep_ionHe] +=  pin->stars_photoion_rate[pin->index_stars_dep_HeI]*pin->nH*(_E_H_ion_*_eV_)*x_He;
+    if((1-x_H)>0)pin->pvecdeposition[pin->index_dep_ionH] += pin->stars_photoion_rate[pin->index_stars_dep_H]*pin->nH*(_E_H_ion_*_eV_)*(1-x_H);
+    // if((1-x_He)>0)pin->pvecdeposition[pin->index_dep_ionHe] +=  pin->stars_photoion_rate[pin->index_stars_dep_HeI]*pin->nH*(24.6*_eV_)*(1-x_He)*pin->fHe;
     // pin->pvecdeposition[pin->index_dep_ionHe] +=  pin->stars_photoion_rate[pin->index_stars_dep_HeII]*pin->nH*(_E_H_ion_*_eV_)*x_He;
-    pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_H]*pin->nH*_k_B_*(1-x_H);
+    if((1-x_H)>0)pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_H]*pin->nH*_k_B_*(1-x_H);//neutral hydrogen
+    // pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*(1-x_He)*pin->fHe;
+    // pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeI]*pin->nH*_k_B_*(pin->fHe-x_He);//neutral helium
+    // printf("1+z %e before %e",1+z,pin->pvecdeposition[pin->index_dep_heat]);//neutral helium
+
+    if((pin->fHe-pth->x_He_reio)>0){
+      // printf(" %e %e %e \n",1+z,pin->fHe,pth->x_He_reio);
+      pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*(pin->fHe-pth->x_He_reio)*0.6777;//neutral helium
+      // printf("after %e \n",pin->pvecdeposition[pin->index_dep_heat]);//neutral helium
+      // printf(" %e %e %e %e %e\n",1+z,pin->fHe,pth->x_He_reio,pin->stars_photoheat_rate[pin->index_stars_dep_HeI],pin->stars_photoheat_rate[pin->index_stars_dep_H]);
+
+    }
+    // printf("1+z %e photoheat H %e (1-x_H) %e photoheat He %e x_He %e\n",1+z,pin->stars_photoheat_rate[pin->index_stars_dep_H]*pin->nH*_k_B_*(1-x_H),(1-x_H),pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*(1-x_He)*pin->fHe,(1-x_He)*pin->fHe);
     if(pin->include_recombination_cooling == _TRUE_ && 1+z < 50){
           // printf("%e %e %e\n",-0.72411256*log(Tmat*_eV_over_Kelvin_),- 2.02604473e-2 * pow(log(Tmat*_eV_over_Kelvin_),2),  - 2.38086188e-3 * pow(log(Tmat*_eV_over_Kelvin_),3));
           alphaA_recomb_H=pow(10,-6)*exp(-28.6130338-0.72411256*log(pin->T_b*_eV_over_Kelvin_)
@@ -551,27 +565,30 @@ for(index_dep=0; index_dep<pin->stars_photoion_dep_size; ++index_dep){
           // )/ heat_capacity / (Hz*(1.+z))* _k_B_/_eV_over_Kelvin_,dy[ptv->index_ti_D_pin->T_b]);
 
           //recomb_cooling_rate
-      	  pin->pvecdeposition[pin->index_dep_heat] +=	-6.24e11 / _eV_over_Kelvin_  * pin->nH*pin->nH * (	1.036e-16 * pin->T_b * alphaA_recomb_H * (x_H) * x_H   ) * _k_B_; //in J/s
+      	  // pin->pvecdeposition[pin->index_dep_heat] +=	-6.24e11 / _eV_over_Kelvin_  * pin->nH*pin->nH * (	1.036e-16 * pin->T_b * alphaA_recomb_H * (x_H) * x_H   ) * _k_B_; //in J/s
       		 // // dy[ptv->index_ti_D_Tmat]	-= + -6.24e11 * nH*nH *(
       			// // 	1.036e-16 * Tmat * alphaA_recomb_He
       			// // 	// + 6.526e-11 * alphaA_recomb_He
       			// // ) * x * x_He / heat_capacity / (Hz*(1.+z)) * _k_B_;
             T5_factor = 1/(1 + pow(pin->T_b/1e5,0.5));
             coll_ion_rate_H=pow(10,-6)*1.17e-10 * pow(pin->T_b,0.5) * exp(-157809.1/pin->T_b) * T5_factor;
-           //  coll_ion_rate_He=4.76e-11 * pow(pin->T_b,0.5) * exp(-285335.4/pin->T_b) * T5_factor;
+           double coll_ion_rate_He=pow(10,-6)*4.76e-11 * pow(pin->T_b,0.5) * exp(-285335.4/pin->T_b) * T5_factor;
 
         //coll_ion_cooling_rate
-          pin->pvecdeposition[pin->index_dep_heat] +=  -6.24e11/_eV_over_Kelvin_ * x_H * pin->nH*pin->nH * (	2.18e-11 * coll_ion_rate_H *(1-x_H)) * _k_B_;
-          // dy[ptv->index_ti_D_Tmat] -=  -6.24e11 * x * nH*nH * ( 3.94e-11 * coll_ion_rate_He * x_He)/ heat_capacity / (Hz*(1.+z)) * _k_B_/_eV_over_Kelvin_;
+          // pin->pvecdeposition[pin->index_dep_heat] +=  -6.24e11/_eV_over_Kelvin_ * x_H * pin->nH*pin->nH * (	2.18e-11 * coll_ion_rate_H *(1-x_H)) * _k_B_;
+          // pin->pvecdeposition[pin->index_dep_heat] +=  -6.24e11/_eV_over_Kelvin_ * x_H * pin->nH*pin->nH * ( 3.94e-11 * coll_ion_rate_He * (pin->fHe-pth->x_He_reio)) * _k_B_;
         // //coll_exc_cooling_rate
         // printf("x_H %e\n", x_H);
          pin->pvecdeposition[pin->index_dep_heat] +=
         		-6.24e11/_eV_over_Kelvin_ * x_H * pin->nH*pin->nH * (
-        			7.50e-19 * exp(-118348/pin->T_b) * T5_factor * x_H) * pow(10,-6)*_k_B_;
+        			7.50e-19 * exp(-118348/pin->T_b) * T5_factor * (1-x_H)) * pow(10,-6)*_k_B_;
         	// 		+ 5.54e-17 * T_in_K**-0.397 *  np.exp(-473638 /T_in_K)
-        	// 			* T_5_factor * xHeII
-         //      + 9.10e-27 * pow(Tmat,-0.1687) * exp(-13179.0/Tmat)
-         //        * T5_factor * x_H *  pin->nH * x_He)
+        				// * T_5_factor * xHeII
+                // pin->pvecdeposition[pin->index_dep_heat] +=  - 5.54e-17 /_eV_over_Kelvin_ * pow(pin->T_b,-0.397) *  exp(-473638 /pin->T_b)
+          			// 	* T5_factor * (pin->fHe-pth->x_He_reio) * pow(10,-6)*_k_B_;
+                // pin->pvecdeposition[pin->index_dep_heat] +=
+                // - 9.10e-27 /_eV_over_Kelvin_* pow(pin->T_b,-0.1687) * exp(-13179.0/pin->T_b)
+                // * T5_factor * x_H *  pin->nH * (pin->fHe-pth->x_He_reio)* pow(10,-6)*_k_B_;
         //
         //
         // 			// + 3.94e-11 * coll_ion_rate('HeI', T_m) * xHeI
@@ -583,12 +600,12 @@ for(index_dep=0; index_dep<pin->stars_photoion_dep_size; ++index_dep){
         // // brem_cooling_rate
         //
         	gaunt_fac = 1.1 + 0.34 * exp(-pow(5.5 - log10(pin->T_b),2)/3.0);
-
-         pin->pvecdeposition[pin->index_dep_heat] +=
-        		-x_H * 6.24e11 * pin->nH*pin->nH* (
-        			1.43e-27 * pow(pin->T_b,0.5) * gaunt_fac* pow(10,-6)
-        				* (x_H + x_He)
-        		)* _k_B_/_eV_over_Kelvin_;
+         //
+         // pin->pvecdeposition[pin->index_dep_heat] +=
+        	// 	-x_H * 6.24e11 * pin->nH*pin->nH* (
+        	// 		1.43e-27 * pow(pin->T_b,0.5) * gaunt_fac* pow(10,-6)
+        	// 			* (x_H + x_He)
+        	// 	)* _k_B_/_eV_over_Kelvin_;
 
 
 

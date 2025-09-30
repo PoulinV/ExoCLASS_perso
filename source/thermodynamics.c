@@ -1062,6 +1062,7 @@ int thermodynamics_indices(
     class_define_index(ptrp->index_re_reio_exponent,_TRUE_,index_re,1);
     class_define_index(ptrp->index_re_reio_width,_TRUE_,index_re,1);
     class_define_index(ptrp->index_re_xe_before,_TRUE_,index_re,1);
+    class_define_index(ptrp->index_re_xe_during,_TRUE_,index_re,1);
     class_define_index(ptrp->index_re_xe_after,_TRUE_,index_re,1);
     class_define_index(ptrp->index_re_helium_fullreio_fraction,_TRUE_,index_re,1);
     class_define_index(ptrp->index_re_helium_fullreio_redshift,_TRUE_,index_re,1);
@@ -2653,7 +2654,7 @@ int thermodynamics_derivs(
   x_He = ptdw->x_He;
   // if(ptdw->x_noreio < 1.0 && isnan(ptdw->x_noreio)==_FALSE_)x = ptdw->x_noreio;
   // else x = 1.0;
-x = ptdw->x_noreio;
+  x = ptdw->x_noreio;
   /** - If needed, calculate heating effects (i.e. any possible energy deposition rates
       affecting the evolution equations for x and Tmat) */
 
@@ -2689,7 +2690,7 @@ x = ptdw->x_noreio;
                  precfast->error_message,
                  error_message);
     }
-
+    printf("xHe %e xH %e Tmat %e 1+z %e\n",x_He,x_H,Tmat,1+z);
     break;
   case hyrec:
   case darkhistory:
@@ -2727,7 +2728,7 @@ x = ptdw->x_noreio;
                pth->error_message,
                pth->error_message);
   }
-
+  // printf("in derivs %e\n", 1+z);
   /* Using the following definitions and equations, we derive a few important quantities
      Using n_e = x * n_H, n_He = f * n_H, rho_He ~ YHe * rho_b, rho_H ~ (1-YHe)*rho_b)
      - Heat capacity of the IGM
@@ -2985,7 +2986,7 @@ int thermodynamics_sources(
 
   /** - Recalculate all quantities at this current redshift: we need
       at least pvecback, ptdw->x_reio, dy[ptv->index_ti_D_Tmat] */
-
+  // printf("in sources %e\n", 1+z);
   class_call(thermodynamics_derivs(mz,y,dy,thermo_parameters_and_workspace,error_message),
              error_message,
              error_message);
@@ -4179,10 +4180,10 @@ int thermodynamics_ionization_fractions(
 
     ptdw->x_H = x_H;
     ptdw->x_He = x_He;
-
   }
 
   ptdw->x_noreio = x;
+  pth->x_He_reio = x_He;
 
   /** - If z is during reionization, also calculate the reionized x */
   if (current_ap == ptdw->index_ap_reio) {
@@ -4193,11 +4194,13 @@ int thermodynamics_ionization_fractions(
       //VP: this needs to be set only one time. Otherwise can lead to a problem with exotic energy injection.
       ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = x;
     }
+    ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_during] = x;
 
     /* compute x */
-    class_call(thermodynamics_reionization_function(z,pth,ptw->ptrp,&x),
+    class_call(thermodynamics_reionization_function(z,pth,ptw->ptrp,&x,&x_He),
                pth->error_message,
                pth->error_message);
+    pth->x_He_reio = x_He;
   }
 
     //VP: implement a simple matching in case we have exotic energy injection leading to early reio.
@@ -4229,7 +4232,8 @@ int thermodynamics_reionization_function(
                                          double z,
                                          struct thermodynamics * pth,
                                          struct thermo_reionization_parameters * preio,
-                                         double * x
+                                         double * x,
+                                         double * x_He
                                          ) {
 
   /** Summary: */
@@ -4258,6 +4262,8 @@ int thermodynamics_reionization_function(
       *x = preio->reionization_parameters[preio->index_re_xe_before];
     }
     else {
+
+
       /** - --> case z < z_reio_start: hydrogen contribution (tanh of complicated argument) */
       argument = (pow((1.+preio->reionization_parameters[preio->index_re_reio_redshift]),
                       preio->reionization_parameters[preio->index_re_reio_exponent])
@@ -4271,13 +4277,21 @@ int thermodynamics_reionization_function(
             -preio->reionization_parameters[preio->index_re_xe_before])
         *(tanh(argument)+1.)/2.
         +preio->reionization_parameters[preio->index_re_xe_before];
+      if(pth->include_reionization_from_stars == _TRUE_){
+        /* overwrite as we include hydrogen reionization from stars */
+        *x = preio->reionization_parameters[preio->index_re_xe_during];
+      }
+      // printf("here! xe %e\n", *x);
 
       /** - --> case z < z_reio_start: helium contribution (tanh of simpler argument) */
       argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
         /preio->reionization_parameters[preio->index_re_helium_fullreio_width];
-
+      *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
+        *(tanh(argument)+1.)/2.;
       *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
         *(tanh(argument)+1.)/2.;
+        // printf("after! xe %e\n", *x);
+
       // printf("xe before = %e xe after = %e  xe reio = %e, xe he reio = %e \n",preio->reionization_parameters[preio->index_re_xe_before],preio->reionization_parameters[preio->index_re_xe_after],(preio->reionization_parameters[preio->index_re_xe_after]
       //       -preio->reionization_parameters[preio->index_re_xe_before])
       //   *(tanh(argument)+1.)/2.

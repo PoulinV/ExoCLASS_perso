@@ -249,6 +249,7 @@ extern "C" {
                                          double x,
                                          double z);
   int injection_energy_injection_from_stars_at_z(struct injection* phe,
+                                          struct thermodynamics* pth,
                                          double z,
                                          double x_H,
                                          double x_He);

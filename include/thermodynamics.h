@@ -102,6 +102,7 @@ struct thermodynamics
   double helium_fullreio_redshift; /**< redshift for of helium reionization */
 
   double helium_fullreio_width; /**< width of helium reionization */
+  double x_He_reio;       /**< Helium ionization fraction */
 
   /** parameters for reio_bins_tanh */
 
@@ -143,7 +144,7 @@ struct thermodynamics
                                  distorsions if requested). */
 
   short include_recombination_cooling; /**< true include recombination cooling. */
-
+  short include_reionization_from_stars; /**< true include_reionization_from_stars */
   struct injection in; /**< structure to store exotic energy injections and their energy deposition */
 
   double annihilation; /**< parameter describing CDM annihilation (f <sigma*v> / m_cdm, see e.g. 0905.0003) */
@@ -442,6 +443,7 @@ struct thermo_reionization_parameters{
   int index_re_reio_exponent;  /**< an exponent used in the function x_e(z) in the reio_camb scheme */
   int index_re_reio_width;     /**< a width defining the duration of hydrogen reionization in the reio_camb scheme */
   int index_re_xe_before; /**< ionization fraction at redshift 'reio_start' */
+  int index_re_xe_during; /**< useful when dealing with reionization from stars */
   int index_re_xe_after;  /**< ionization fraction after full reionization */
   int index_re_helium_fullreio_fraction; /**< helium full reionization fraction inferred from primordial helium fraction */
   int index_re_helium_fullreio_redshift; /**< helium full reionization redshift */
@@ -661,7 +663,8 @@ extern "C" {
   int thermodynamics_reionization_function(double z,
                                            struct thermodynamics * pth,
                                            struct thermo_reionization_parameters * preio,
-                                           double * x);
+                                           double * x,
+                                           double * xHe);
 
   int thermodynamics_obtain_z_ini(
                                   struct precision * ppr,

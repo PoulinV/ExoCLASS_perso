@@ -3396,6 +3396,8 @@ int input_read_parameters_injection(struct file_content * pfc,
   if (flag1 == _TRUE_){
     if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
       pin->include_reionization_from_stars = _TRUE_;
+      pth->include_reionization_from_stars = _TRUE_;
+
 
         class_call(parser_read_string(pfc,"stars_photoion_file",&string2,&flag2,errmsg),
                    errmsg,
@@ -3418,6 +3420,7 @@ int input_read_parameters_injection(struct file_content * pfc,
       }
     else {
       pin->include_reionization_from_stars = _FALSE_;
+      pth->include_reionization_from_stars = _FALSE_;
     }
   }
   class_call(parser_read_string(pfc,"include_recombination_cooling",&string1,&flag1,errmsg),
@@ -6673,6 +6676,7 @@ int input_default_params(struct background *pba,
   class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
   // class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
   pin->include_reionization_from_stars = _FALSE_;
+  pth->include_reionization_from_stars = _FALSE_;
   /**
    * Default to input_read_parameters_nonlinear
    */
