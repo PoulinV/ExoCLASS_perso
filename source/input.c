@@ -3397,6 +3397,8 @@ int input_read_parameters_injection(struct file_content * pfc,
     if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
       pin->include_reionization_from_stars = _TRUE_;
       pth->include_reionization_from_stars = _TRUE_;
+      pth->has_exotic_injection = _TRUE_;
+
 
 
         class_call(parser_read_string(pfc,"stars_photoion_file",&string2,&flag2,errmsg),
