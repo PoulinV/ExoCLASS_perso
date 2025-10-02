@@ -3686,7 +3686,7 @@ int input_read_parameters_injection(struct file_content * pfc,
             sprintf(string2,"%g",pin->DM_annihilation_cross_section);
             strcat(pin->command_fz,string2);
             strcat(pin->command_fz," --n_cdm=");
-            sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_annihilation_mass); //in per cm^3
+            sprintf(string2,"%g",pin->DM_annihilation_fraction*pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_annihilation_mass); //in per cm^3
             strcat(pin->command_fz,string2);
           }
 
@@ -3721,7 +3721,7 @@ int input_read_parameters_injection(struct file_content * pfc,
             sprintf(string2,"%g",pin->DM_annihilation_cross_section);
             strcat(pin->command_fz,string2);
             strcat(pin->command_fz," --n_cdm=");
-            sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_annihilation_mass); //in per cm^3
+            sprintf(string2,"%g",pin->DM_annihilation_fraction*pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_annihilation_mass); //in per cm^3
             strcat(pin->command_fz,string2);
           }
 
@@ -3771,7 +3771,7 @@ int input_read_parameters_injection(struct file_content * pfc,
             sprintf(string2,"%g",1/pin->DM_decay_Gamma); //convert gamma to tau in seconds.
             strcat(pin->command_fz,string2);
             strcat(pin->command_fz," --n_cdm=");
-            sprintf(string2,"%g",pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_decay_mass); //in per cm^3
+            sprintf(string2,"%g",pin->DM_decay_fraction*pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_decay_mass); //in per cm^3
             strcat(pin->command_fz,string2);
 
           }
