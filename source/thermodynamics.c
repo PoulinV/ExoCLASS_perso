@@ -4279,9 +4279,21 @@ int thermodynamics_reionization_function(
         +preio->reionization_parameters[preio->index_re_xe_before];
       if(pth->include_reionization_from_stars == _TRUE_){
         /* overwrite as we include hydrogen reionization from stars */
-        *x = preio->reionization_parameters[preio->index_re_xe_during];
+        // *x = preio->reionization_parameters[preio->index_re_xe_during];
+        *x =  (preio->reionization_parameters[preio->index_re_xe_after]
+              -preio->reionization_parameters[preio->index_re_xe_during])
+          *(tanh(argument)+1.)/2.
+          +preio->reionization_parameters[preio->index_re_xe_during];
+        argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
+          /preio->reionization_parameters[preio->index_re_helium_fullreio_width];
+        *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
+          *(tanh(argument)+1.)/2;
+        *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
+          *(tanh(argument)+1.)/2;
       }
       // printf("here! xe %e\n", *x);
+      else{
+
 
       /** - --> case z < z_reio_start: helium contribution (tanh of simpler argument) */
       argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
@@ -4290,6 +4302,7 @@ int thermodynamics_reionization_function(
         *(tanh(argument)+1.)/2.;
       *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
         *(tanh(argument)+1.)/2.;
+      }
         // printf("after! xe %e\n", *x);
 
       // printf("xe before = %e xe after = %e  xe reio = %e, xe he reio = %e \n",preio->reionization_parameters[preio->index_re_xe_before],preio->reionization_parameters[preio->index_re_xe_after],(preio->reionization_parameters[preio->index_re_xe_after]
