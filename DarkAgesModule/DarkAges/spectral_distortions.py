@@ -166,6 +166,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     # need_to_interpolate = False
     energy_integral = np.zeros( shape=(len(frequency),len(z_injected)), dtype=np.float64)
     Enj = transfer_functions_E
+    Eelec=max(E-2*510998.9461,0)*np.ones_like(E)
+
     for i in range(len(frequency)): ##loop over frequency
         # print(frequency[i])
         if how_to_integrate == 'logE':
@@ -174,12 +176,13 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
                     # int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
                     # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
                     int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-                    int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
+                    int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
                 else:
                     int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],Eelec)*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
                 energy_integral[i][k] = trapz( int_phot + int_elec, log10E )
         elif how_to_integrate == 'energy':
+            # print("here!!")
             for k in range(len(z_injected)):
                 if not need_to_interpolate:
                     # print(spectral_distortions_phot[k,i,:],spec_elec[:,k],(E[:]**1))
@@ -189,12 +192,12 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
                     # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**1)
                 else:
                     int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]/2
-                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]/2
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],Eelec)*spec_elec[:,k]/2
                     # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*2
                     # int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**1)
                     # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**1)
                 if len(E) > 1:
-                    energy_integral[i][k] = trapz( int_phot + int_elec, E )
+                    energy_integral[i][k] = trapz( int_phot,E)+trapz(int_elec, Eelec)
                 else:
                     energy_integral[i][k] = int_phot + int_elec
                 # if(energy_integral[i][k]==0):

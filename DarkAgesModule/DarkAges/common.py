@@ -212,6 +212,8 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 		deposition given in :code:`z_dep`
 	"""
 	E = logConversion(log10E)
+	# print(E)
+
 	how_to_integrate = DarkOptions.get('E_integration_scheme','logE')
 	if how_to_integrate not in ['logE','energy']:
 		from .__init__ import DarkAgesError
@@ -230,27 +232,31 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 	energy_integral = np.zeros( shape=(len(z_dep),len(z_inj)), dtype=np.float64)
 	#print(len(energy_integral))
 	Enj = logConversion(transfer_functions_log10E)
+	Eelec=max(E-2*510998.9461,0)*np.ones_like(E)
+	# Eelec=E
+	# print(E,Eelec)
+	# print(Eelec)
 	for i in range(len(z_dep)):
 		low= np.searchsorted(z_inj, z_dep[i])
 		if how_to_integrate == 'logE':
 			for k in range(len(z_inj[low:])):
 				if not need_to_interpolate:
 					int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-					int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
+					int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
 				else:
 					int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-					int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
+					int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],Eelec)*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
 				energy_integral[i][k] = trapz( int_phot + int_elec, log10E )
 		elif how_to_integrate == 'energy':
 			for k in range(low,len(z_inj)):
 			             if not need_to_interpolate:
 			                          int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
-			                          int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
+			                          int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(Eelec[:]**1)
 			             else:
 			                          int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
-			                          int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(E[:]**1)
+			                          int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(Eelec[:]**1)
 			             if len(E) > 1:
-			                          energy_integral[i][k] = trapz( int_phot + int_elec, E )
+			                          energy_integral[i][k] = trapz( int_phot, E )+trapz( int_elec, Eelec)
 			             else:
 			                          energy_integral[i][k] = int_elec+int_phot
 

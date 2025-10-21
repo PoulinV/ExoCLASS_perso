@@ -2690,19 +2690,32 @@ int thermodynamics_derivs(
                  precfast->error_message,
                  error_message);
     }
-    printf("xHe %e xH %e Tmat %e 1+z %e\n",x_He,x_H,Tmat,1+z);
+//    printf("xHe %e xH %e Tmat %e 1+z %e\n",x_He,x_H,Tmat,1+z);
     break;
   case hyrec:
   case darkhistory:
     /* Hydrogen equations */
     if (ptdw->require_H == _TRUE_) {
+
+      
+      class_test((isnan(x_H)),
+             error_message,
+             "At redshift %.5g : recombination is not occuring correctly, most likely because of large energy injection",
+             z);
+
       class_call(hyrec_dx_H_dz(pth,ptw->ptdw->phyrec,x_H,x_He,x,nH,z,Hz,Tmat,Trad,alpha,me,&(dy[ptv->index_ti_x_H])),
                  ptw->ptdw->phyrec->error_message,
                  error_message);
+  //    printf("here crash H %e\n",x_H);
     }
 
     /* Helium equations */
     if (ptdw->require_He == _TRUE_) {
+      class_test((isnan(x_He)),
+             error_message,
+             "At redshift %.5g : recombination is not occuring correctly, most likely because of large energy injection",
+             z);
+
       class_call(hyrec_dx_He_dz(pth,ptw->ptdw->phyrec,x_H,x_He,x,nH,z,Hz,Tmat,Trad,alpha,me,&(dy[ptv->index_ti_x_He])),
                  ptw->ptdw->phyrec->error_message,
                  error_message);
