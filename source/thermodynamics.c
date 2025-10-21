@@ -4263,6 +4263,10 @@ int thermodynamics_reionization_function(
     }
     else {
 
+      // Load in DarkHistory helium data from file
+      class_call(injection_read_DH_He_from_file(pth),
+                 pth->error_message,
+                 pth->error_message);
 
       /** - --> case z < z_reio_start: hydrogen contribution (tanh of complicated argument) */
       argument = (pow((1.+preio->reionization_parameters[preio->index_re_reio_redshift]),
@@ -4285,11 +4289,11 @@ int thermodynamics_reionization_function(
           *(tanh(argument)+1.)/2.
           +preio->reionization_parameters[preio->index_re_xe_during];
         argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
-          /preio->reionization_parameters[preio->index_re_helium_fullreio_width];
-        *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
-          *(tanh(argument)+1.)/2;
+          /preio->reionization_parameters[preio->index_re_helium_fullreio_width]*2;
+        *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction] * (tanh(argument)+1.)/2;
         *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
           *(tanh(argument)+1.)/2;
+        // printf("testing xHe fraction: %f %e\n", z, *x_He);
       }
       // printf("here! xe %e\n", *x);
       else{
@@ -4993,6 +4997,88 @@ int injection_read_DH_from_file(struct thermodynamics * pth){
                             0,
                             1+index_thermo,
                             1+index_thermo+pth->DH_th_size,
+                            _SPLINE_NATURAL_,
+                            pth->error_message),
+              pth->error_message,
+              pth->error_message);
+  }
+
+  return _SUCCESS_;
+}
+
+
+/**
+ * Read and interpolate the DarkHistory helium reionization history from external file.
+ *
+ * @param pth   Input/Output: pointer to thermodynamics structure
+ * @return the error status
+ */
+int injection_read_DH_He_from_file(struct thermodynamics * pth){
+  /** - Define local variables */
+  FILE *DH_input = NULL;
+  char line[_LINE_LENGTH_MAX_];
+  char * left;
+  int headlines, index_z, index_He;
+
+  /** Assign initial values */
+  headlines = 0;
+  pth->DH_He_z_size = 0;
+
+  /** Open file */
+  class_open(DH_input, pth->DH_He_file_name, "r", pth->error_message);
+
+  while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
+      headlines++;
+
+      /* Eliminate blank spaces at beginning of line */
+      left=line;
+      while (left[0]==' ') {
+        left++;
+      }
+
+      /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
+          be the beginning of some data (it is not a newline, a #, a %, etc.) */
+      if (left[0] > 39) {
+          /* If the line contains data, we must interprete it. If at 0th line, the current line must contain
+              its value. Otherwise, it must contain (z , xe, Tmat, dTmat). */
+
+          /* Read num_lines, infer size of arrays and allocate them */
+          class_test(sscanf(line,"%d",&(pth->DH_He_z_size)) != 1,
+                      pth->error_message,
+                      "could not read the initial integer of number of lines in line %i in file '%s' \n",
+                      headlines,pth->DH_He_file_name);
+
+          break;
+    }
+  }
+
+  /** Allocate space for DarkHistory table */
+  class_alloc(pth->DH_He_table,(2*pth->DH_He_size+1)*pth->DH_He_z_size*sizeof(double),pth->error_message);
+
+  /** - Read file */
+  for(index_z=0;index_z<pth->DH_He_z_size;++index_z){
+    /* Read thermodynamics data */
+    class_test(fscanf(DH_input,"%lg %lg %lg %lg",
+                      &(pth->DH_He_table[index_z*(2*pth->DH_He_size+1)+0]),  // z
+                      &(pth->DH_He_table[index_z*(2*pth->DH_He_size+1)+pth->index_DH_HeII]),  // HeII
+                      &(pth->DH_He_table[index_z*(2*pth->DH_He_size+1)+pth->index_DH_HeIII])  // HeIII
+                     ) != 3,
+               pth->error_message,
+               "could not read value of parameters coefficients in line %i in file '%s'\n",
+               headlines,pth->DH_He_file_name);
+  }
+  /** Close file */
+  fclose(DH_input);
+
+  /** - Spline file contents */
+  /* Spline in one dimension */
+  for(index_He=0;index_He<pth->DH_He_size;++index_He){
+    class_call(array_spline(pth->DH_He_table,
+                            2*pth->DH_He_size+1,
+                            pth->DH_He_z_size,
+                            0,
+                            1+index_He,
+                            1+index_He+pth->DH_He_size,
                             _SPLINE_NATURAL_,
                             pth->error_message),
               pth->error_message,

@@ -193,6 +193,14 @@ struct thermodynamics
   int DH_mode;
   short run_DH_with_SD;
 
+  /** DarkHistory helium reionization quantities **/
+  char DH_He_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input
+  double* DH_He_table; // table to store helium reio history
+  int DH_He_z_size; // number of lines read into table
+  int DH_He_size; // number of columns for helium. Usually 2 for HeII and HeIII
+  int index_DH_HeII;
+  int index_DH_HeIII;
+
   /** parameters for varying fundamental constants */
 
   short has_varconst; /**< presence of varying fundamental constants? */
@@ -664,7 +672,8 @@ extern "C" {
                                            struct thermodynamics * pth,
                                            struct thermo_reionization_parameters * preio,
                                            double * x,
-                                           double * xHe);
+                                           double * xHe
+                                           );
 
   int thermodynamics_obtain_z_ini(
                                   struct precision * ppr,
@@ -701,6 +710,8 @@ extern "C" {
                                              struct thermo_diffeq_workspace * ptdw);
 
   int injection_read_DH_from_file(struct thermodynamics * pth);
+
+  int injection_read_DH_He_from_file(struct thermodynamics * pth);
 
 #ifdef __cplusplus
 }
