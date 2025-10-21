@@ -485,6 +485,7 @@ int thermodynamics_free_input(
 
   case reio_none:
   case reio_camb:
+    free(pth->DH_He_table);
   case reio_half_tanh:
   default:
     /* nothing to be read*/
@@ -4057,7 +4058,7 @@ int thermodynamics_ionization_fractions(
   struct thermo_vector * ptv = ptdw->ptv;
 
   /* Thermo quantities */
-  double x_H, x_He, xHeII, x=0., Tmat;
+  double x_H, x_HeII, x_HeIII, x=0., Tmat;
   /* Analytical quantities */
   double rhs, sqrt_val;
 
@@ -4097,7 +4098,8 @@ int thermodynamics_ionization_fractions(
     x = 2.*(1+2.*ptw->fHe)/(1.-rhs*(1.+ptw->fHe) + sqrt_val);
 
     ptdw->x_H = 1.;
-    ptdw->x_He = 1.;
+    ptdw->x_HeII = 0.;
+    ptdw->x_HeIII = 1.;
 
     //initial condition for later
     ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = 0.0 ;
@@ -4116,7 +4118,8 @@ int thermodynamics_ionization_fractions(
     x = 0.5*(sqrt_val - (rhs-1.-ptw->fHe));
 
     ptdw->x_H = 1.;
-    ptdw->x_He = 1.;
+    ptdw->x_HeII = 0.;
+    ptdw->x_HeIII = 1.;
 
   }
   /** - --> third regime: first Helium recombination finished, H and Helium fully ionized */
@@ -4133,7 +4136,8 @@ int thermodynamics_ionization_fractions(
     x = 2.*(1+ptw->fHe)/(1.-rhs + sqrt_val);
 
     ptdw->x_H = 1.;
-    ptdw->x_He = 1.;
+    ptdw->x_HeII = 0.;
+    ptdw->x_HeIII = 1.;
 
   }
   /** - --> fourth regime: second Helium recombination starts (analytic approximation) */
@@ -4162,9 +4166,9 @@ int thermodynamics_ionization_fractions(
       rhs *= rescale_rhs;
     }
 
-    /* Assuming Saha equilibrium for HII->HI. Includes xHeII corrections from incomplete recombination of HeII --> HeI (non-zero x_HeII) */
-    xHeII = y[ptv->index_ti_x_He]*ptw->fHe;
-    x_H = 2./(1.+xHeII/rhs + sqrt((1.+xHeII/rhs)*(1.+xHeII/rhs)+4./rhs));
+    /* Assuming Saha equilibrium for HII->HI. Includes x_HeII corrections from incomplete recombination of HeII --> HeI (non-zero x_HeII) */
+    x_HeII = y[ptv->index_ti_x_He]*ptw->fHe;
+    x_H = 2./(1.+x_HeII/rhs + sqrt((1.+x_HeII/rhs)*(1.+x_HeII/rhs)+4./rhs));
 
     x_He = y[ptv->index_ti_x_He];
     x = x_H + ptw->fHe * x_He;
@@ -4210,7 +4214,7 @@ int thermodynamics_ionization_fractions(
     ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_during] = x;
 
     /* compute x */
-    class_call(thermodynamics_reionization_function(z,pth,ptw->ptrp,&x,&x_He),
+    class_call(thermodynamics_reionization_function(z,pth,ptw->ptrp,&x,&x_HeII,&x_HeIII),
                pth->error_message,
                pth->error_message);
     pth->x_He_reio = x_He;
@@ -4246,7 +4250,8 @@ int thermodynamics_reionization_function(
                                          struct thermodynamics * pth,
                                          struct thermo_reionization_parameters * preio,
                                          double * x,
-                                         double * x_He
+                                         double * x_HeII,
+                                         double * x_HeIII
                                          ) {
 
   /** Summary: */
@@ -4256,9 +4261,12 @@ int thermodynamics_reionization_function(
   int i;
   double z_jump;
 
-  int jump;
+  int jump, last_index;
   double center,before, after,width,one_jump;
   double z_min, z_max;
+  double * He_vec;
+
+  class_alloc(He_vec,(pth->DH_He_size+1)*sizeof(double),pth->error_message);
 
   switch (pth->reio_parametrization) {
 
@@ -4294,6 +4302,7 @@ int thermodynamics_reionization_function(
             -preio->reionization_parameters[preio->index_re_xe_before])
         *(tanh(argument)+1.)/2.
         +preio->reionization_parameters[preio->index_re_xe_before];
+
       if(pth->include_reionization_from_stars == _TRUE_){
         /* overwrite as we include hydrogen reionization from stars */
         // *x = preio->reionization_parameters[preio->index_re_xe_during];
@@ -4301,12 +4310,33 @@ int thermodynamics_reionization_function(
               -preio->reionization_parameters[preio->index_re_xe_during])
           *(tanh(argument)+1.)/2.
           +preio->reionization_parameters[preio->index_re_xe_during];
-        argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
-          /preio->reionization_parameters[preio->index_re_helium_fullreio_width]*2;
-        *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction] * (tanh(argument)+1.)/2;
-        *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
-          *(tanh(argument)+1.)/2;
-        // printf("testing xHe fraction: %f %e\n", z, *x_He);
+
+        // argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
+        //   /preio->reionization_parameters[preio->index_re_helium_fullreio_width]*2;
+        // *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction] * (tanh(argument)+1.)/2;
+        // *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
+        //   *(tanh(argument)+1.)/2;
+
+        // Interpolate for helium history from table
+        if(1+z>pth->DH_He_table[(pth->DH_He_z_size-1)*(2*pth->DH_He_size+1)]){
+          *x_HeII  = 0;
+          *x_HeIII = 0;
+        }else{
+          class_call(array_interpolate(pth->DH_He_table,
+                                     2*pth->DH_He_size+1,
+                                     pth->DH_He_z_size,
+                                     0,
+                                     1+z,
+                                     &last_index,
+                                     He_vec,
+                                     pth->DH_He_size+1,
+                                     pth->error_message),
+                   pth->error_message,
+                   pth->error_message);
+          *x_HeII  = He_vec[pth->index_DH_HeII]*pth->fHe;
+          *x_HeIII = He_vec[pth->index_DH_HeIII]*pth->fHe;
+          *x += He_vec[pth->index_DH_HeII]*pth->fHe + He_vec[pth->index_DH_HeIII]*pth->fHe;
+        }
       }
       // printf("here! xe %e\n", *x);
       else{
@@ -4315,7 +4345,8 @@ int thermodynamics_reionization_function(
       /** - --> case z < z_reio_start: helium contribution (tanh of simpler argument) */
       argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
         /preio->reionization_parameters[preio->index_re_helium_fullreio_width];
-      *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
+      *x_HeII = 0;
+      *x_HeIII = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
         *(tanh(argument)+1.)/2.;
       *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
         *(tanh(argument)+1.)/2.;
@@ -4491,6 +4522,7 @@ int thermodynamics_reionization_function(
                "value of reio_parametrization=%d unclear",pth->reio_parametrization);
     break;
   }
+  free(He_vec);
   return _SUCCESS_;
 }
 
@@ -5031,11 +5063,17 @@ int injection_read_DH_He_from_file(struct thermodynamics * pth){
   FILE *DH_input = NULL;
   char line[_LINE_LENGTH_MAX_];
   char * left;
-  int headlines, index_z, index_He;
+  int headlines, index_DH, index_z, index_He;
 
   /** Assign initial values */
   headlines = 0;
   pth->DH_He_z_size = 0;
+
+  /** Define indices for DarkHistory table */
+  index_DH = 1; // start at 1 because skipping redshift at index 0
+  class_define_index(pth->index_DH_HeII,_TRUE_,index_DH,1);
+  class_define_index(pth->index_DH_HeIII,_TRUE_,index_DH,1);
+  pth->DH_He_size = index_DH-1; // subtract one because not including redshift
 
   /** Open file */
   class_open(DH_input, pth->DH_He_file_name, "r", pth->error_message);
@@ -5071,7 +5109,7 @@ int injection_read_DH_He_from_file(struct thermodynamics * pth){
   /** - Read file */
   for(index_z=0;index_z<pth->DH_He_z_size;++index_z){
     /* Read thermodynamics data */
-    class_test(fscanf(DH_input,"%lg %lg %lg %lg",
+    class_test(fscanf(DH_input,"%lg %lg %lg",
                       &(pth->DH_He_table[index_z*(2*pth->DH_He_size+1)+0]),  // z
                       &(pth->DH_He_table[index_z*(2*pth->DH_He_size+1)+pth->index_DH_HeII]),  // HeII
                       &(pth->DH_He_table[index_z*(2*pth->DH_He_size+1)+pth->index_DH_HeIII])  // HeIII

@@ -3410,6 +3410,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                    "for the option 'include_reionization_from_stars'  the option 'stars_photoion_file' is required.");
         /* Complete set of parameters */
         strcpy(pin->stars_photoion_file, string2);
+
         class_call(parser_read_string(pfc,"stars_photoheat_file",&string3,&flag3,errmsg),
                    errmsg,
                    errmsg);
@@ -3419,6 +3420,16 @@ int input_read_parameters_injection(struct file_content * pfc,
                    "for the option 'include_reionization_from_stars'  the option 'stars_photoheat_file' is required.");
         /* Complete set of parameters */
         strcpy(pin->stars_photoheat_file, string3);
+
+        class_call(parser_read_string(pfc,"DH_He_file_name",&string3,&flag3,errmsg),
+                   errmsg,
+                   errmsg);
+        /* Test */
+        class_test(flag3 == _FALSE_,
+                   errmsg,
+                   "for the option 'include_reionization_from_stars'  the option 'DH_He_file_name' is required.");
+        /* Complete set of parameters */
+        strcpy(pth->DH_He_file_name, string3);
       }
     else {
       pin->include_reionization_from_stars = _FALSE_;

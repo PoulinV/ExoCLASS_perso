@@ -672,7 +672,8 @@ extern "C" {
                                            struct thermodynamics * pth,
                                            struct thermo_reionization_parameters * preio,
                                            double * x,
-                                           double * xHe
+                                           double * xHeII,
+                                           double * xHeIII
                                            );
 
   int thermodynamics_obtain_z_ini(
