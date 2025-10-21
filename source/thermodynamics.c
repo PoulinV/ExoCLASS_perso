@@ -2088,7 +2088,7 @@ int thermodynamics_vector_init(
 
     /* Set the new vector and its indices */
     ptv->y[ptv->index_ti_D_Tmat] = ptdw->ptv->y[ptdw->ptv->index_ti_D_Tmat];
-    ptv->y[ptv->index_ti_x_He] = ptdw->x_He;
+    ptv->y[ptv->index_ti_x_He] = ptdw->x_HeII;
     if (pba->has_idm == _TRUE_)
       ptv->y[ptv->index_ti_T_idm] = ptdw->ptv->y[ptdw->ptv->index_ti_T_idm];
 
@@ -2652,7 +2652,7 @@ int thermodynamics_derivs(
   x = ptdw->x_reio;
   /** - Derivative of the ionization fractions */
   x_H = ptdw->x_H;
-  x_He = ptdw->x_He;
+  x_He = ptdw->x_HeII;
   // if(ptdw->x_noreio < 1.0 && isnan(ptdw->x_noreio)==_FALSE_)x = ptdw->x_noreio;
   // else x = 1.0;
   x = ptdw->x_noreio;
@@ -4098,7 +4098,7 @@ int thermodynamics_ionization_fractions(
     x = 2.*(1+2.*ptw->fHe)/(1.-rhs*(1.+ptw->fHe) + sqrt_val);
 
     ptdw->x_H = 1.;
-    ptdw->x_HeII = 0.;
+    ptdw->x_HeII = 0.; // WQ: check that all these changes to x_HeII and x_HeIII make sense
     ptdw->x_HeIII = 1.;
 
     //initial condition for later
@@ -4118,8 +4118,8 @@ int thermodynamics_ionization_fractions(
     x = 0.5*(sqrt_val - (rhs-1.-ptw->fHe));
 
     ptdw->x_H = 1.;
-    ptdw->x_HeII = 0.;
-    ptdw->x_HeIII = 1.;
+    ptdw->x_HeII = 1.;
+    ptdw->x_HeIII = 0.;
 
   }
   /** - --> third regime: first Helium recombination finished, H and Helium fully ionized */
@@ -4154,7 +4154,8 @@ int thermodynamics_ionization_fractions(
     x = 0.5*(sqrt_val - (rhs-1.));
 
     ptdw->x_H = 1.;
-    ptdw->x_He = (x-1.)/ptw->fHe;
+    ptdw->x_HeII = 0.;
+    ptdw->x_HeIII = (x-1.)/ptw->fHe;
 
   }
   /** - --> fifth regime: Hydrogen recombination starts (analytic approximation)
@@ -4170,21 +4171,24 @@ int thermodynamics_ionization_fractions(
     x_HeII = y[ptv->index_ti_x_He]*ptw->fHe;
     x_H = 2./(1.+x_HeII/rhs + sqrt((1.+x_HeII/rhs)*(1.+x_HeII/rhs)+4./rhs));
 
-    x_He = y[ptv->index_ti_x_He];
-    x = x_H + ptw->fHe * x_He;
+    x_HeIII = 0.;
+    x = x_H + x_HeII;
 
     ptdw->x_H = x_H;
-    ptdw->x_He = x_He;
+    ptdw->x_HeII = x_HeII;
+    ptdw->x_HeIII = x_HeIII;
 
   }
   /** - --> sixth regime: full Hydrogen and Helium equations */
   else if (current_ap == ptdw->index_ap_frec) {
     x_H = y[ptv->index_ti_x_H];
-    x_He = y[ptv->index_ti_x_He];
-    x = x_H + ptw->fHe * x_He;
+    x_HeII = y[ptv->index_ti_x_He];
+    x_HeIII = 0.;
+    x = x_H + ptw->fHe * x_HeII + 2 * ptw->fHe * x_HeIII;
 
     ptdw->x_H = x_H;
-    ptdw->x_He = x_He;
+    ptdw->x_HeII = x_HeII;
+    ptdw->x_HeIII = x_HeIII;
 
   }
   /** - --> seventh regime: calculate x_noreio during reionization
@@ -4192,15 +4196,18 @@ int thermodynamics_ionization_fractions(
   else if (current_ap == ptdw->index_ap_reio) {
 
     x_H = y[ptv->index_ti_x_H];
-    x_He = y[ptv->index_ti_x_He];
-    x = x_H + ptw->fHe * x_He;
+    x_HeII = y[ptv->index_ti_x_He];
+    x_HeIII = 0.;
+    x = x_H + ptw->fHe * x_HeII + 2 * ptw->fHe * x_HeII;
 
     ptdw->x_H = x_H;
-    ptdw->x_He = x_He;
+    ptdw->x_HeII = x_HeII;
+    ptdw->x_HeIII = x_HeIII;
   }
 
   ptdw->x_noreio = x;
-  pth->x_He_reio = x_He;
+  pth->x_HeII_reio = x_HeII;
+  pth->x_HeIII_reio = x_HeIII;
 
   /** - If z is during reionization, also calculate the reionized x */
   if (current_ap == ptdw->index_ap_reio) {
@@ -4217,7 +4224,8 @@ int thermodynamics_ionization_fractions(
     class_call(thermodynamics_reionization_function(z,pth,ptw->ptrp,&x,&x_HeII,&x_HeIII),
                pth->error_message,
                pth->error_message);
-    pth->x_He_reio = x_He;
+    pth->x_HeII_reio = x_HeII;
+    pth->x_HeIII_reio = x_HeIII;
   }
 
     //VP: implement a simple matching in case we have exotic energy injection leading to early reio.

@@ -102,7 +102,8 @@ struct thermodynamics
   double helium_fullreio_redshift; /**< redshift for of helium reionization */
 
   double helium_fullreio_width; /**< width of helium reionization */
-  double x_He_reio;       /**< Helium ionization fraction */
+  double x_HeII_reio;        /**< singly ionized helium fraction */
+  double x_HeIII_reio;       /**< doubly ionized helium fraction */
 
   /** parameters for reio_bins_tanh */
 
@@ -395,11 +396,12 @@ struct thermo_vector {
 struct thermo_diffeq_workspace {
 
   double x_H;        /**< Hydrogen ionization fraction */
-  double x_He;       /**< Helium ionization fraction */
+  double x_HeII;     /**< singly ionized helium fraction */
+  double x_HeIII;    /**< doubly ionized helium fraction */
   double x_noreio;   /**< Electron ionization fraction, not taking into account reionization */
   double x_reio;     /**< Electron ionization fraction, taking into account reionization */
 
-  double x;          /**< total ionization fraction following usual CMB convention, n_free/n_H = x_H + fHe * x_He; */
+  double x;          /**< total ionization fraction following usual CMB convention, n_free/n_H = x_H + fHe * x_HeII + 2 * fHe * x_HeIII; */
 
   double Tmat;       /**< matter temperature */
 
