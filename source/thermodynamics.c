@@ -4099,7 +4099,7 @@ int thermodynamics_ionization_fractions(
 
     ptdw->x_H = 1.;
     ptdw->x_HeII = 0.; // WQ: check that all these changes to x_HeII and x_HeIII make sense
-    ptdw->x_HeIII = 1.;
+    ptdw->x_HeIII = ptw->fHe;
 
     //initial condition for later
     ptw->ptrp->reionization_parameters[ptw->ptrp->index_re_xe_before] = 0.0 ;
@@ -4118,7 +4118,7 @@ int thermodynamics_ionization_fractions(
     x = 0.5*(sqrt_val - (rhs-1.-ptw->fHe));
 
     ptdw->x_H = 1.;
-    ptdw->x_HeII = 1.;
+    ptdw->x_HeII = ptw->fHe;
     ptdw->x_HeIII = 0.;
 
   }
@@ -4137,7 +4137,7 @@ int thermodynamics_ionization_fractions(
 
     ptdw->x_H = 1.;
     ptdw->x_HeII = 0.;
-    ptdw->x_HeIII = 1.;
+    ptdw->x_HeIII = ptw->fHe;
 
   }
   /** - --> fourth regime: second Helium recombination starts (analytic approximation) */
@@ -4155,7 +4155,7 @@ int thermodynamics_ionization_fractions(
 
     ptdw->x_H = 1.;
     ptdw->x_HeII = 0.;
-    ptdw->x_HeIII = (x-1.)/ptw->fHe;
+    ptdw->x_HeIII = (x-1.);
 
   }
   /** - --> fifth regime: Hydrogen recombination starts (analytic approximation)
@@ -4182,9 +4182,9 @@ int thermodynamics_ionization_fractions(
   /** - --> sixth regime: full Hydrogen and Helium equations */
   else if (current_ap == ptdw->index_ap_frec) {
     x_H = y[ptv->index_ti_x_H];
-    x_HeII = y[ptv->index_ti_x_He];
+    x_HeII = y[ptv->index_ti_x_He] * ptw->fHe;
     x_HeIII = 0.;
-    x = x_H + ptw->fHe * x_HeII + 2 * ptw->fHe * x_HeIII;
+    x = x_H + x_HeII + 2 * x_HeIII;
 
     ptdw->x_H = x_H;
     ptdw->x_HeII = x_HeII;
@@ -4196,9 +4196,9 @@ int thermodynamics_ionization_fractions(
   else if (current_ap == ptdw->index_ap_reio) {
 
     x_H = y[ptv->index_ti_x_H];
-    x_HeII = y[ptv->index_ti_x_He];
+    x_HeII = y[ptv->index_ti_x_He] * ptw->fHe;
     x_HeIII = 0.;
-    x = x_H + ptw->fHe * x_HeII + 2 * ptw->fHe * x_HeII;
+    x = x_H + x_HeII + 2 * x_HeII;
 
     ptdw->x_H = x_H;
     ptdw->x_HeII = x_HeII;
@@ -4312,18 +4312,7 @@ int thermodynamics_reionization_function(
         +preio->reionization_parameters[preio->index_re_xe_before];
 
       if(pth->include_reionization_from_stars == _TRUE_){
-        /* overwrite as we include hydrogen reionization from stars */
-        // *x = preio->reionization_parameters[preio->index_re_xe_during];
-        *x =  (preio->reionization_parameters[preio->index_re_xe_after]
-              -preio->reionization_parameters[preio->index_re_xe_during])
-          *(tanh(argument)+1.)/2.
-          +preio->reionization_parameters[preio->index_re_xe_during];
-
-        // argument = (preio->reionization_parameters[preio->index_re_helium_fullreio_redshift] - z)
-        //   /preio->reionization_parameters[preio->index_re_helium_fullreio_width]*2;
-        // *x_He = preio->reionization_parameters[preio->index_re_helium_fullreio_fraction] * (tanh(argument)+1.)/2;
-        // *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
-        //   *(tanh(argument)+1.)/2;
+        *x = preio->reionization_parameters[preio->index_re_xe_during];
 
         // Interpolate for helium history from table
         if(1+z>pth->DH_He_table[(pth->DH_He_z_size-1)*(2*pth->DH_He_size+1)]){
@@ -4343,7 +4332,7 @@ int thermodynamics_reionization_function(
                    pth->error_message);
           *x_HeII  = He_vec[pth->index_DH_HeII]*pth->fHe;
           *x_HeIII = He_vec[pth->index_DH_HeIII]*pth->fHe;
-          *x += He_vec[pth->index_DH_HeII]*pth->fHe + He_vec[pth->index_DH_HeIII]*pth->fHe;
+          *x += He_vec[pth->index_DH_HeII]*pth->fHe + 2*He_vec[pth->index_DH_HeIII]*pth->fHe;
         }
       }
       // printf("here! xe %e\n", *x);
