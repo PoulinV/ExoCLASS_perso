@@ -539,7 +539,7 @@ for(index_dep=0; index_dep<pin->stars_photoion_dep_size; ++index_dep){
 
     if((pin->fHe-pth->x_HeII_reio-pth->x_HeIII_reio)>0){
       // printf(" %e %e %e \n",1+z,pin->fHe,pth->x_HeII_reio);
-      // pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeI]*pin->nH*_k_B_*(pin->fHe-pth->x_HeII_reio-pth->x_HeIII_reio);
+      pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeI]*pin->nH*_k_B_*(pin->fHe-pth->x_HeII_reio-pth->x_HeIII_reio);
       pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*pth->x_HeII_reio;
       // printf("after %e \n",pin->pvecdeposition[pin->index_dep_heat]);//neutral helium
       // printf(" %e %e %e %e %e\n",1+z,pin->fHe,pth->x_He_reio,pin->stars_photoheat_rate[pin->index_stars_dep_HeI],pin->stars_photoheat_rate[pin->index_stars_dep_H]);
