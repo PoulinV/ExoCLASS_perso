@@ -36,7 +36,6 @@ int injection_init(struct precision * ppr,
   pin->last_index_z_chi = 0;
   pin->last_index_z_feff = 0;
   pin->injection_verbose = pth->thermodynamics_verbose;
-  pin->include_recombination_cooling = pth->include_recombination_cooling;
   /** - Import quantities from other structures */
   /* Precision structure */
   pin->Nz_size = ppr->thermo_Nz_lin;
@@ -156,12 +155,12 @@ int injection_init(struct precision * ppr,
                   pin->error_message);
       /** - VP: if necessary, add in the effect of stars to model reionization realistically*/
    class_call(injection_read_stars_photoion_from_file(ppr,pin,
-                                             pin->stars_photoion_file),
+                                             pin->reio_stars_photoion_file),
               pin->error_message,
               pin->error_message);
 
    class_call(injection_read_stars_photoheat_from_file(ppr,pin,
-                                             pin->stars_photoheat_file),
+                                             pin->reio_stars_photoheat_file),
               pin->error_message,
               pin->error_message);
  }
@@ -502,42 +501,13 @@ for(index_dep=0; index_dep<pin->stars_photoion_dep_size; ++index_dep){
           pin->stars_photoheat_rate[index_dep]=pow(10,pin->stars_photoheat_rate[index_dep]);
       }
 
-
-      // if(pin->stars_photoheat_rate[index_dep] <0){
-      //   for(i=0;i<pin->stars_photoheat_z_size;i++){
-      //     if(1+z>pin->stars_photoheat_table[i*(2*pin->stars_photoheat_dep_size+1)+0]){
-      //       index_z = i;
-      //     }
-      //     pin->stars_photoheat_rate[index_dep]=pin->stars_photoheat_table[index_z*(2*pin->stars_photoheat_dep_size+1)+index_dep+1];
-      //   }
-      // }
   }
-  // if(x_H >= 1.0){
-  //   pin->stars_photoion_rate[pin->index_stars_dep_H] = 0;
-  // }
-  // if(x_He >= 1.0){
-  //   pin->stars_photoion_rate[pin->index_stars_dep_HeI] = 0;
-  //   pin->stars_photoion_rate[pin->index_stars_dep_HeII] = 0;
-  // }
-  // printf("after interp\n");
 
-    //
-    // if(pin->stars_photoion_rate[pin->index_stars_dep_H] <0)pin->stars_photoion_rate[pin->index_stars_dep_H]=0;
-    // if(pin->stars_photoion_rate[pin->index_stars_dep_HeI] <0)pin->stars_photoion_rate[pin->index_stars_dep_HeI]=0;
-    // if(pin->stars_photoion_rate[pin->index_stars_dep_HeII] <0)pin->stars_photoion_rate[pin->index_stars_dep_HeII]=0;
-    // if(pin->stars_photoheat_rate[pin->index_stars_dep_H] <0)pin->stars_photoheat_rate[pin->index_stars_dep_H]=0;
-    // if(pin->stars_photoheat_rate[pin->index_stars_dep_HeI] <0)pin->stars_photoheat_rate[pin->index_stars_dep_HeI]=0;
-    // if(pin->stars_photoheat_rate[pin->index_stars_dep_HeII] <0)pin->stars_photoheat_rate[pin->index_stars_dep_HeII]=0;
-    // pin->pvecdeposition[pin->index_dep_ionH] += pin->stars_photoion_rate[pin->index_stars_dep_H]*pin->nH*(_E_H_ion_*_eV_)*x_H;
     if((1-x_H)>0)pin->pvecdeposition[pin->index_dep_ionH] += pin->stars_photoion_rate[pin->index_stars_dep_H]*pin->nH*(_E_H_ion_*_eV_)*(1-x_H);
-    // if((1-x_He)>0)pin->pvecdeposition[pin->index_dep_ionHe] +=  pin->stars_photoion_rate[pin->index_stars_dep_HeI]*pin->nH*(24.6*_eV_)*(1-x_He)*pin->fHe;
-    // pin->pvecdeposition[pin->index_dep_ionHe] +=  pin->stars_photoion_rate[pin->index_stars_dep_HeII]*pin->nH*(_E_H_ion_*_eV_)*x_He;
-    if((1-x_H)>0)pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_H]*pin->nH*_k_B_*(1-x_H);//neutral hydrogen
-    // pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*(1-x_He)*pin->fHe;
-    // pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeI]*pin->nH*_k_B_*(pin->fHe-x_He);//neutral helium
-    // printf("1+z %e before %e",1+z,pin->pvecdeposition[pin->index_dep_heat]);//neutral helium
 
-    if((pin->fHe-pth->x_HeII_reio-pth->x_HeIII_reio)>0){
+    if((1-x_H)>0)pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_H]*pin->nH*_k_B_*(1-x_H);//neutral hydrogen
+
+    if((pin->fHe-pth->x_HeII_reio-pth->x_HeIII_reio)>0 && pth->include_reio_stars_helium == _TRUE_){
       // printf(" %e %e %e \n",1+z,pin->fHe,pth->x_HeII_reio);
       pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeI]*pin->nH*_k_B_*(pin->fHe-pth->x_HeII_reio-pth->x_HeIII_reio);
       pin->pvecdeposition[pin->index_dep_heat] += pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*pth->x_HeII_reio;
@@ -546,7 +516,7 @@ for(index_dep=0; index_dep<pin->stars_photoion_dep_size; ++index_dep){
 
     }
     // printf("1+z %e photoheat H %e (1-x_H) %e photoheat He %e x_He %e\n",1+z,pin->stars_photoheat_rate[pin->index_stars_dep_H]*pin->nH*_k_B_*(1-x_H),(1-x_H),pin->stars_photoheat_rate[pin->index_stars_dep_HeII]*pin->nH*_k_B_*(1-x_He)*pin->fHe,(1-x_He)*pin->fHe);
-    if(pin->include_recombination_cooling == _TRUE_ && 1+z < 50){
+    if(pin->include_reio_stars_cooling_terms == _TRUE_ && 1+z < 50){
           // printf("%e %e %e\n",-0.72411256*log(Tmat*_eV_over_Kelvin_),- 2.02604473e-2 * pow(log(Tmat*_eV_over_Kelvin_),2),  - 2.38086188e-3 * pow(log(Tmat*_eV_over_Kelvin_),3));
           alphaA_recomb_H=pow(10,-6)*exp(-28.6130338-0.72411256*log(pin->T_b*_eV_over_Kelvin_)
                   - 2.02604473e-2 * pow(log(pin->T_b*_eV_over_Kelvin_),2)
@@ -1737,7 +1707,7 @@ int injection_read_chi_x_from_file(struct precision* ppr,
  */
 int injection_read_stars_photoion_from_file(struct precision* ppr,
                                    struct injection* pin,
-                                   char* stars_photoion_file){
+                                   char* reio_stars_photoion_file){
 
   /** Define local variables */
   FILE * fA;
@@ -1754,7 +1724,7 @@ int injection_read_stars_photoion_from_file(struct precision* ppr,
    *    - The columns (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE) where chi_i represents the
    *      branching ratio at redshift z into different injection/ionization channels i */
 
-  class_open(fA, stars_photoion_file, "r", pin->error_message);
+  class_open(fA, reio_stars_photoion_file, "r", pin->error_message);
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,fA) != NULL) {
     headlines++;
@@ -1776,7 +1746,7 @@ int injection_read_stars_photoion_from_file(struct precision* ppr,
       class_test(sscanf(line,"%d",&(pin->stars_photoion_z_size)) != 1,
                  pin->error_message,
                  "could not read the initial integer of number of lines in line %i in file '%s' \n",
-                 headlines, stars_photoion_file);
+                 headlines, reio_stars_photoion_file);
 
       /* (z, chi_i)*/
       class_alloc(pin->stars_photoion_table,
@@ -1797,7 +1767,7 @@ int injection_read_stars_photoion_from_file(struct precision* ppr,
                     )!= 4,
                pin->error_message,
                "could not read value of parameters coefficients in line %i in file '%s'\n",
-               index_z+headlines,stars_photoion_file);
+               index_z+headlines,reio_stars_photoion_file);
 
          for(index_dep=0;index_dep<pin->stars_photoion_dep_size;++index_dep){
            // printf("index_dep %d %e %e\n",index_dep,pin->stars_photoion_table[index_z*(2*pin->stars_photoion_dep_size+1)+1+index_dep],log10(pin->stars_photoion_table[index_z*(2*pin->stars_photoion_dep_size+1)+1+index_dep]));
@@ -1839,7 +1809,7 @@ int injection_read_stars_photoion_from_file(struct precision* ppr,
  */
 int injection_read_stars_photoheat_from_file(struct precision* ppr,
                                    struct injection* pin,
-                                   char* stars_photoheat_file){
+                                   char* reio_stars_photoheat_file){
 
   /** Define local variables */
   FILE * fA;
@@ -1856,7 +1826,7 @@ int injection_read_stars_photoheat_from_file(struct precision* ppr,
    *    - The columns (xe , chi_heat, chi_Lya, chi_H, chi_He, chi_lowE) where chi_i represents the
    *      branching ratio at redshift z into different injection/ionization channels i */
 
-  class_open(fA, stars_photoheat_file, "r", pin->error_message);
+  class_open(fA, reio_stars_photoheat_file, "r", pin->error_message);
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,fA) != NULL) {
     headlines++;
@@ -1878,7 +1848,7 @@ int injection_read_stars_photoheat_from_file(struct precision* ppr,
       class_test(sscanf(line,"%d",&(pin->stars_photoheat_z_size)) != 1,
                  pin->error_message,
                  "could not read the initial integer of number of lines in line %i in file '%s' \n",
-                 headlines, stars_photoheat_file);
+                 headlines, reio_stars_photoheat_file);
 
       /* (z, chi_i)*/
       class_alloc(pin->stars_photoheat_table,
@@ -1899,7 +1869,7 @@ int injection_read_stars_photoheat_from_file(struct precision* ppr,
                     )!= 4,
                pin->error_message,
                "could not read value of parameters coefficients in line %i in file '%s'\n",
-               index_z+headlines,stars_photoheat_file);
+               index_z+headlines,reio_stars_photoheat_file);
 
                for(index_dep=0;index_dep<pin->stars_photoheat_dep_size;++index_dep){
                  pin->stars_photoheat_table[index_z*(2*pin->stars_photoheat_dep_size+1)+1+index_dep]=log10(pin->stars_photoheat_table[index_z*(2*pin->stars_photoheat_dep_size+1)+1+index_dep]);
