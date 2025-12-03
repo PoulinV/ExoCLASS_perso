@@ -57,8 +57,8 @@ from datetime import datetime
 ###
 
 #LOCAL_DATA_DIR_NAME = '/Path/To/Your/Data/Directory/'
-LOCAL_DATA_DIR_NAME = '/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/external/heating/'
-LOCAL_FILE_NAME = 'new_rhosquareV_GaussMeth_xkd_mchi_mbh_rhomax0_rhosquareV_log10.npz'
+LOCAL_DATA_DIR_NAME = '/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_PBH_spike/external/heating/'
+LOCAL_FILE_NAME = 'neww_rhosquareV_GaussMeth_xkd_mchi_mbh_rhomax0_cosmomod0_rhosquareV_log10.npz'
 
 ### Init vectors and matrices
 ### (Lxxx indicates that tabulated values are in the form log10(xxx))
@@ -112,7 +112,7 @@ def interpol_l10GammaBH_from_data_table(mbh,fbh,mchi,xkd,sigv,dt,oDM=0.11933):
 
     global VAR_LXKD_V, VAR_LMCHI_V, VAR_LMBH_V, VAR_LRHOMAX_V, VAR_LRHOSQUAREV_MX
     grid_points = (VAR_LXKD_V,VAR_LMCHI_V,VAR_LMBH_V,VAR_LRHOMAX_V)
-
+    # print(grid_points)
     #cosmo_fraction = 1.
     cosmo_fraction = oDM/0.11933 ## The original calculation was performed with Planck+18.
 
@@ -121,11 +121,11 @@ def interpol_l10GammaBH_from_data_table(mbh,fbh,mchi,xkd,sigv,dt,oDM=0.11933):
     TimeEQ = 1.6110761e+12 # Time [s] spent between end of inflation and equality
     dteff = dt+epsilon_time
     mchig = mchi*GeV_IN_g # GeV -> g
-
+    #print("dteff=",dteff,"dt=",dt)
     # We calculate the approximate saturation density, which is only used here as
     # an effective time.
-    rhomax = mchig/(sigv*dteff)/cosmo_fraction # g/cm3
-
+    #rhomax = mchig/(sigv*dteff)/cosmo_fraction # g/cm3
+    rhomax = min(1.e12,mchig/(sigv*dteff)) # g/cm3
     # The required point coordinates in this parameter space.
     lmbh = np.log10(mbh)
     lmchi, lxkd, lrhomax = np.log10(mchi), np.log10(xkd), np.log10(rhomax)

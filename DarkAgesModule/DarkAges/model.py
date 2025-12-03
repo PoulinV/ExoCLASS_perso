@@ -254,7 +254,7 @@ class PBH_spike_model(model):
 
         #LOCAL_DATA_DIR_NAME = '/Path/To/Your/Data/Directory/'
         LOCAL_DATA_DIR_NAME = '/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_PBH_spike/external/heating/'
-        LOCAL_FILE_NAME = 'new_rhosquareV_GaussMeth_xkd_mchi_mbh_rhomax0_rhosquareV_log10.npz'
+        LOCAL_FILE_NAME = 'neww_rhosquareV_GaussMeth_xkd_mchi_mbh_rhomax0_cosmomod0_rhosquareV_log10.npz'
 
 
 
@@ -325,7 +325,8 @@ class PBH_spike_model(model):
 
             # We calculate the approximate saturation density, which is only used here as
             # an effective time.
-            rhomax = mchig/(sigv*dteff)/cosmo_fraction # g/cm3
+#            rhomax = mchig/(sigv*dteff)/cosmo_fraction # g/cm3
+            rhomax = min(1.e12,mchig/(sigv*dteff)) # g/cm3
 
             # The required point coordinates in this parameter space.
             lmbh = np.log10(mbh)
