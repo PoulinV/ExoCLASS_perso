@@ -87,18 +87,18 @@ class model(object):
 			and :math:`f(z_\mathrm{dep})` in the second column.
 		"""
 
-		if not isinstance(transfer_instance, transfer):
-			raise DarkAgesError('You did not include a proper instance of the class "transfer"')
-		else:
-			red = transfer_instance.z_deposited
+		#if not isinstance(transfer_instance, transfer):
+		#	raise DarkAgesError('You did not include a proper instance of the class "transfer"')
+		#else:
+		red = transfer_instance.z_deposited
 
-			f_func = f_function(transfer_instance.log10E,self.logEnergies, transfer_instance.z_injected,
+		f_func = f_function(transfer_instance.log10E,self.logEnergies, transfer_instance.z_injected,
                                 transfer_instance.z_deposited, self.normalization,
                                 transfer_instance.transfer_phot,
                                 transfer_instance.transfer_elec,
                                 self.spec_photons, self.spec_electrons, alpha=self.alpha_to_use, **DarkOptions)
 
-			return np.array([red, f_func], dtype=np.float64)
+		return np.array([red, f_func], dtype=np.float64)
 
 	def save_f(self,transfer_instance, filename, **DarkOptions):
 		u"""Saves the table :math:`z_\mathrm{dep.}`, :math:`f(z_\mathrm{dep})` for
