@@ -61,8 +61,8 @@ struct injection{
   int chi_type;
   FileName chi_z_file;
   FileName chi_x_file;
-  FileName stars_photoion_file;
-  FileName stars_photoheat_file;
+  FileName reio_stars_photoion_file;
+  FileName reio_stars_photoheat_file;
 
   //@}
 
@@ -97,7 +97,7 @@ struct injection{
   double N_e0;
   /* Redshift dependent, i.e. defined in injection_calculate_at_z */
   double heat_capacity;
-  short include_recombination_cooling;
+  short include_reio_stars_cooling_terms;
   double T_b;
   double x_e;
   double nH;
@@ -292,10 +292,10 @@ extern "C" {
                                      char* chi_x_file);
   int injection_read_stars_photoion_from_file(struct precision* ppr,
                                      struct injection* phe,
-                                     char* stars_photoion_file);
+                                     char* reio_stars_photoion_file);
   int injection_read_stars_photoheat_from_file(struct precision* ppr,
                                      struct injection* phe,
-                                     char* stars_photoheat_file);
+                                     char* reio_stars_photoheat_file);
 
   int injection_output_titles(struct injection* phe,
                               char titles[_MAXTITLESTRINGLENGTH_]);

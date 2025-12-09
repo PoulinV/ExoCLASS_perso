@@ -486,7 +486,6 @@ int thermodynamics_free_input(
   case reio_none:
     break;
   case reio_camb:
-    free(pth->DH_He_table);
   case reio_half_tanh:
   default:
     /* nothing to be read*/
@@ -510,7 +509,11 @@ int thermodynamics_free_input(
     free(pth->reio_inter_z);
     free(pth->reio_inter_xe);
     break;
-
+  case reio_stars:
+  if(pth->include_reio_stars_helium){
+    free(pth->DH_He_table);
+  }
+    break;
   }
 
   return _SUCCESS_;
@@ -1108,6 +1111,19 @@ int thermodynamics_indices(
     class_define_index(ptrp->index_re_first_xe,_TRUE_,index_re,ptrp->re_z_size);
     class_define_index(ptrp->index_re_xe_before,_TRUE_,index_re,1);
     break;
+  case reio_stars:
+  if(pth->include_reio_stars_helium){
+    class_call(injection_read_DH_He_from_file(pth),
+            pth->error_message,
+            pth->error_message);
+      }
+    class_define_index(ptrp->index_re_xe_before,_TRUE_,index_re,1);
+    class_define_index(ptrp->index_re_xe_during,_TRUE_,index_re,1);
+    class_define_index(ptrp->index_re_xe_after,_TRUE_,index_re,1);
+    class_define_index(ptrp->index_re_helium_fullreio_fraction,_TRUE_,index_re,1);
+    class_define_index(ptrp->index_re_helium_fullreio_redshift,_TRUE_,index_re,1);
+    class_define_index(ptrp->index_re_helium_fullreio_width,_TRUE_,index_re,1);
+    break;
 
   default:
     class_stop(pth->error_message,
@@ -1531,7 +1547,15 @@ int thermodynamics_set_parameters_reionization(
                preio->reionization_parameters[preio->index_re_reio_start],
                ppr->reionization_z_start_max);
     break;
+  case reio_stars:
 
+    // class_define_index(ptrp->index_re_xe_before,_TRUE_,index_re,1);
+    // class_define_index(ptrp->index_re_xe_during,_TRUE_,index_re,1);
+    // class_define_index(ptrp->index_re_xe_after,_TRUE_,index_re,1);
+    // class_define_index(ptrp->index_re_helium_fullreio_fraction,_TRUE_,index_re,1);
+    // class_define_index(ptrp->index_re_helium_fullreio_redshift,_TRUE_,index_re,1);
+    // class_define_index(ptrp->index_re_helium_fullreio_width,_TRUE_,index_re,1);
+    break;
   default:
     class_stop(pth->error_message,
                "value of reio_parametrization=%d unclear",pth->reio_parametrization);
@@ -1876,7 +1900,9 @@ int thermodynamics_output_summary(
   case reio_inter:
     printf(" -> interpolated reionization history gives optical depth = %f\n",pth->tau_reio);
     break;
-
+  case reio_stars:
+    printf(" ->stars reionization history gives optical depth = %f\n",pth->tau_reio);
+    break;
   default:
     class_stop(pth->error_message,
                "value of reio_parametrization=%d unclear",pth->reio_parametrization);
@@ -2699,7 +2725,7 @@ int thermodynamics_derivs(
     /* Hydrogen equations */
     if (ptdw->require_H == _TRUE_) {
 
-      
+
       class_test((isnan(x_H)),
              error_message,
              "At redshift %.5g : recombination is not occuring correctly, most likely because of large energy injection",
@@ -4293,11 +4319,6 @@ int thermodynamics_reionization_function(
     }
     else {
 
-      // Load in DarkHistory helium data from file
-      class_call(injection_read_DH_He_from_file(pth),
-                 pth->error_message,
-                 pth->error_message);
-
       /** - --> case z < z_reio_start: hydrogen contribution (tanh of complicated argument) */
       argument = (pow((1.+preio->reionization_parameters[preio->index_re_reio_redshift]),
                       preio->reionization_parameters[preio->index_re_reio_exponent])
@@ -4312,32 +4333,8 @@ int thermodynamics_reionization_function(
         *(tanh(argument)+1.)/2.
         +preio->reionization_parameters[preio->index_re_xe_before];
 
-      if(pth->include_reionization_from_stars == _TRUE_){
-        *x = preio->reionization_parameters[preio->index_re_xe_during];
-
-        // Interpolate for helium history from table
-        if(1+z>pth->DH_He_table[(pth->DH_He_z_size-1)*(2*pth->DH_He_size+1)]){
-          *x_HeII  = 0;
-          *x_HeIII = 0;
-        }else{
-          class_call(array_interpolate(pth->DH_He_table,
-                                     2*pth->DH_He_size+1,
-                                     pth->DH_He_z_size,
-                                     0,
-                                     1+z,
-                                     &last_index,
-                                     He_vec,
-                                     pth->DH_He_size+1,
-                                     pth->error_message),
-                   pth->error_message,
-                   pth->error_message);
-          *x_HeII  = He_vec[pth->index_DH_HeII]*pth->fHe;
-          *x_HeIII = He_vec[pth->index_DH_HeIII]*pth->fHe;
-          *x += He_vec[pth->index_DH_HeII]*pth->fHe + 2*He_vec[pth->index_DH_HeIII]*pth->fHe;
-        }
-      }
       // printf("here! xe %e\n", *x);
-      else{
+      // else{
 
 
       /** - --> case z < z_reio_start: helium contribution (tanh of simpler argument) */
@@ -4348,7 +4345,7 @@ int thermodynamics_reionization_function(
         *(tanh(argument)+1.)/2.;
       *x += preio->reionization_parameters[preio->index_re_helium_fullreio_fraction]
         *(tanh(argument)+1.)/2.;
-      }
+      // }
         // printf("after! xe %e\n", *x);
 
       // printf("xe before = %e xe after = %e  xe reio = %e, xe he reio = %e \n",preio->reionization_parameters[preio->index_re_xe_before],preio->reionization_parameters[preio->index_re_xe_after],(preio->reionization_parameters[preio->index_re_xe_after]
@@ -4514,6 +4511,38 @@ int thermodynamics_reionization_function(
                  preio->reionization_parameters[preio->index_re_first_xe+i+1]);
     }
     break;
+
+    case reio_stars:
+            if(pth->include_reio_stars_helium){
+              // Interpolate for helium history from table
+              if(1+z>pth->DH_He_table[(pth->DH_He_z_size-1)*(2*pth->DH_He_size+1)]){
+                *x_HeII  = 0;
+                *x_HeIII = 0;
+              }else{
+                class_call(array_interpolate(pth->DH_He_table,
+                                           2*pth->DH_He_size+1,
+                                           pth->DH_He_z_size,
+                                           0,
+                                           1+z,
+                                           &last_index,
+                                           He_vec,
+                                           pth->DH_He_size+1,
+                                           pth->error_message),
+                         pth->error_message,
+                         pth->error_message);
+                *x_HeII  = He_vec[pth->index_DH_HeII]*pth->fHe;
+                *x_HeIII = He_vec[pth->index_DH_HeIII]*pth->fHe;
+                *x += He_vec[pth->index_DH_HeII]*pth->fHe + 2*He_vec[pth->index_DH_HeIII]*pth->fHe;
+              }
+            }else{
+              *x_HeII  = He_vec[pth->index_DH_HeII]*pth->fHe;
+              *x_HeIII = He_vec[pth->index_DH_HeIII]*pth->fHe;
+            }
+            // *x = preio->reionization_parameters[preio->index_re_xe_during];
+
+
+    break;
+
 
   default:
     class_stop(pth->error_message,
@@ -5074,7 +5103,7 @@ int injection_read_DH_He_from_file(struct thermodynamics * pth){
   pth->DH_He_size = index_DH-1; // subtract one because not including redshift
 
   /** Open file */
-  class_open(DH_input, pth->DH_He_file_name, "r", pth->error_message);
+  class_open(DH_input, pth->reio_stars_helium_file, "r", pth->error_message);
 
   while (fgets(line,_LINE_LENGTH_MAX_-1,DH_input) != NULL) {
       headlines++;
@@ -5095,7 +5124,7 @@ int injection_read_DH_He_from_file(struct thermodynamics * pth){
           class_test(sscanf(line,"%d",&(pth->DH_He_z_size)) != 1,
                       pth->error_message,
                       "could not read the initial integer of number of lines in line %i in file '%s' \n",
-                      headlines,pth->DH_He_file_name);
+                      headlines,pth->reio_stars_helium_file);
 
           break;
     }
@@ -5114,7 +5143,7 @@ int injection_read_DH_He_from_file(struct thermodynamics * pth){
                      ) != 3,
                pth->error_message,
                "could not read value of parameters coefficients in line %i in file '%s'\n",
-               headlines,pth->DH_He_file_name);
+               headlines,pth->reio_stars_helium_file);
   }
   /** Close file */
   fclose(DH_input);

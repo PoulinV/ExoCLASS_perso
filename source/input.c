@@ -2201,9 +2201,12 @@ int input_read_parameters_general(struct file_content * pfc,
     else if (strcmp(string1,"reio_inter") == 0){
       pth->reio_parametrization = reio_inter;
     }
+    else if (strcmp(string1,"reio_stars") == 0){
+      pth->reio_parametrization = reio_stars;
+    }
     else{
       class_stop(errmsg,
-                 "You specified 'reio_parametrization' as '%s'. It has to be one of {'reio_none','reio_camb','reio_bins_tanh','reio_half_tanh','reio_many_tanh','reio_inter'}.",string1);
+                 "You specified 'reio_parametrization' as '%s'. It has to be one of {'reio_none','reio_camb','reio_bins_tanh','reio_half_tanh','reio_many_tanh','reio_inter','reio_stars'}.",string1);
     }
   }
 
@@ -2267,6 +2270,35 @@ int input_read_parameters_general(struct file_content * pfc,
     class_read_list_of_doubles("reio_inter_z",pth->reio_inter_z,pth->reio_inter_num);
     class_read_list_of_doubles("reio_inter_xe",pth->reio_inter_xe,pth->reio_inter_num);
     break;
+    /** 8.d) reionization parameters if reio_parametrization=reio_many_tanh */
+  case reio_stars:
+
+    class_call(parser_read_string(pfc,"include_reio_stars_helium",&string1,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
+        pth->include_reio_stars_helium = _TRUE_;
+
+
+            class_call(parser_read_string(pfc,"reio_stars_helium_file",&string1,&flag1,errmsg),
+                       errmsg,
+                       errmsg);
+            /* Test */
+            class_test(flag1 == _FALSE_,
+                       errmsg,
+                       "for the option 'include_reio_stars_helium'  the option 'reio_stars_helium_file' is required.");
+            /* Complete set of parameters */
+            strcpy(pth->reio_stars_helium_file, string1);
+        }
+      else {
+        pth->include_reio_stars_helium = _FALSE_;
+      }
+    }
+
+
+  break;
+
 
   default:
     class_stop(pth->error_message,"pth->recombination=%d different from all known cases",pth->recombination);
@@ -3388,65 +3420,48 @@ int input_read_parameters_injection(struct file_content * pfc,
   string3[0]='\0';
   double param3;
 
-  /** 0) injection from stars */
-  //VP added That
-  class_call(parser_read_string(pfc,"include_reionization_from_stars",&string1,&flag1,errmsg),
-             errmsg,
-             errmsg);
-  if (flag1 == _TRUE_){
-    if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
-      pin->include_reionization_from_stars = _TRUE_;
-      pth->include_reionization_from_stars = _TRUE_;
+
+  /** 0) if we do reionization with stars, we model the hydrogen reionization through tabulated photoionization and photoheating terms, similar to DM energy injection.
+  Here, we read off the files that containts the different rates to be tabulated.
+  */
+    if(pth->reio_parametrization == reio_stars){
       pth->has_exotic_injection = _TRUE_;
+      pin->include_reionization_from_stars = _TRUE_;
 
+      class_call(parser_read_string(pfc,"reio_stars_photoion_file",&string2,&flag2,errmsg),
+                 errmsg,
+                 errmsg);
+      /* Test */
+      class_test(flag2 == _FALSE_,
+                 errmsg,
+                 "for the option 'include_reionization_from_stars'  the option 'reio_stars_photoion_file' is required.");
+      /* Complete set of parameters */
+      strcpy(pin->reio_stars_photoion_file, string2);
 
+      class_call(parser_read_string(pfc,"reio_stars_photoheat_file",&string3,&flag3,errmsg),
+                 errmsg,
+                 errmsg);
+      /* Test */
+      class_test(flag3 == _FALSE_,
+                 errmsg,
+                 "for the option 'include_reionization_from_stars'  the option 'reio_stars_photoheat_file' is required.");
+      /* Complete set of parameters */
+      strcpy(pin->reio_stars_photoheat_file, string3);
+      /** 0) injection from stars */
+      //VP added That
 
-        class_call(parser_read_string(pfc,"stars_photoion_file",&string2,&flag2,errmsg),
-                   errmsg,
-                   errmsg);
-        /* Test */
-        class_test(flag2 == _FALSE_,
-                   errmsg,
-                   "for the option 'include_reionization_from_stars'  the option 'stars_photoion_file' is required.");
-        /* Complete set of parameters */
-        strcpy(pin->stars_photoion_file, string2);
-
-        class_call(parser_read_string(pfc,"stars_photoheat_file",&string3,&flag3,errmsg),
-                   errmsg,
-                   errmsg);
-        /* Test */
-        class_test(flag3 == _FALSE_,
-                   errmsg,
-                   "for the option 'include_reionization_from_stars'  the option 'stars_photoheat_file' is required.");
-        /* Complete set of parameters */
-        strcpy(pin->stars_photoheat_file, string3);
-
-        class_call(parser_read_string(pfc,"DH_He_file_name",&string3,&flag3,errmsg),
-                   errmsg,
-                   errmsg);
-        /* Test */
-        class_test(flag3 == _FALSE_,
-                   errmsg,
-                   "for the option 'include_reionization_from_stars'  the option 'DH_He_file_name' is required.");
-        /* Complete set of parameters */
-        strcpy(pth->DH_He_file_name, string3);
-      }
-    else {
-      pin->include_reionization_from_stars = _FALSE_;
-      pth->include_reionization_from_stars = _FALSE_;
-    }
-  }
-  class_call(parser_read_string(pfc,"include_recombination_cooling",&string1,&flag1,errmsg),
+  class_call(parser_read_string(pfc,"include_reio_stars_cooling_terms",&string1,&flag1,errmsg),
              errmsg,
              errmsg);
   if (flag1 == _TRUE_){
     if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
-      pth->include_recombination_cooling = _TRUE_;
+      pin->include_reio_stars_cooling_terms = _TRUE_;
       }
     else {
-      pth->include_recombination_cooling = _FALSE_;
+      pin->include_reio_stars_cooling_terms = _FALSE_;
     }
   }
+    }
 
 
 
@@ -3974,7 +3989,9 @@ int input_read_parameters_injection(struct file_content * pfc,
       sprintf(pth->command_DH,""); //Start by reseting previous command, useful in context of MCMC with MontePython.
       strcat(pth->command_DH, "python ");
       strcat(pth->command_DH,__CLASSDIR__);
-      strcat(pth->command_DH,"/DH_interface/DarkHistory/DHoneline.py ./DH_interface/ ");
+      strcat(pth->command_DH,"/DH_interface/DarkHistory/DHoneline.py ");
+      strcat(pth->command_DH,__CLASSDIR__);
+      strcat(pth->command_DH,"/DH_interface/ ");
       class_call(parser_read_string(pfc,
                                     "DH_file_name",
                                     &(string1),
@@ -4268,7 +4285,9 @@ int input_read_parameters_injection(struct file_content * pfc,
         if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
             strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         }else{
-          strcat(pth->command_DH," --init_distort_file DH_interface/dummyfile.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
+          strcat(pth->command_DH," --init_distort_file ");
+          strcat(pth->command_DH,__CLASSDIR__);
+          strcat(pth->command_DH,"/DH_interface/dummyfile.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         }
         strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         class_call(parser_read_string(pfc,
@@ -4279,7 +4298,8 @@ int input_read_parameters_injection(struct file_content * pfc,
                    errmsg,
                    errmsg);
 
-        strcpy(pth->DH_dist_file_name,"./DH_interface/");
+        strcat(pth->DH_dist_file_name,__CLASSDIR__);
+        strcat(pth->DH_dist_file_name,"/DH_interface/");
         strcat(pth->DH_dist_file_name, string1);
         strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
 
@@ -6689,8 +6709,9 @@ int input_default_params(struct background *pba,
   // class_sprintf(pin->chi_z_file,"external/heating/example_chiz_file.dat");
   class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
   // class_sprintf(pin->chi_x_file,"external/heating/example_chix_file.dat");
-  pin->include_reionization_from_stars = _FALSE_;
-  pth->include_reionization_from_stars = _FALSE_;
+  pin->include_reionization_from_stars = _FALSE_; //we don't do stars reionization by default
+  pth->include_reio_stars_helium = _FALSE_; //we also reionize helium
+  pin->include_reio_stars_cooling_terms = _TRUE_; //if we do stars reionization, we include cooling terms by default.
   /**
    * Default to input_read_parameters_nonlinear
    */

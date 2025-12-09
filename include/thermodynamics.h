@@ -30,7 +30,8 @@ enum reionization_parametrization {
                                    reio_bins_tanh,  /**< binned reionization history with tanh inteprolation between bins */
                                    reio_half_tanh,  /**< half a tanh, instead of the full tanh */
                                    reio_many_tanh,  /**< similar to reio_camb but with more than one tanh */
-                                   reio_inter       /**< linear interpolation between specified points */
+                                   reio_inter,      /**< linear interpolation between specified points */
+                                   reio_stars       /**< tabulated ioniziation of hydrogen and helium reionization; for hydrogen we model the photoionizing and photoheating rates as source term in the equations. For helium we simply tabulate xHeII as helium reionization is not modeled in CLASS. */
 };
 
 /**
@@ -144,8 +145,7 @@ struct thermodynamics
                                  anisotropies (and spectral
                                  distorsions if requested). */
 
-  short include_recombination_cooling; /**< true include recombination cooling. */
-  short include_reionization_from_stars; /**< true include_reionization_from_stars */
+  short include_reio_stars_helium; /**< true include helium reionization, tabulated */
   struct injection in; /**< structure to store exotic energy injections and their energy deposition */
 
   double annihilation; /**< parameter describing CDM annihilation (f <sigma*v> / m_cdm, see e.g. 0905.0003) */
@@ -195,7 +195,7 @@ struct thermodynamics
   short run_DH_with_SD;
 
   /** DarkHistory helium reionization quantities **/
-  char DH_He_file_name[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input
+  char reio_stars_helium_file[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input
   double* DH_He_table; // table to store helium reio history
   int DH_He_z_size; // number of lines read into table
   int DH_He_size; // number of columns for helium. Usually 2 for HeII and HeIII
