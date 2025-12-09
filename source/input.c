@@ -4298,7 +4298,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                    errmsg,
                    errmsg);
 
-        strcat(pth->DH_dist_file_name,__CLASSDIR__);
+        strcpy(pth->DH_dist_file_name,__CLASSDIR__);
         strcat(pth->DH_dist_file_name,"/DH_interface/");
         strcat(pth->DH_dist_file_name, string1);
         strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
