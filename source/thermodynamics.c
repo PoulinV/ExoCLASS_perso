@@ -484,6 +484,7 @@ int thermodynamics_free_input(
   switch(pth->reio_parametrization){
 
   case reio_none:
+    break;
   case reio_camb:
     free(pth->DH_He_table);
   case reio_half_tanh:

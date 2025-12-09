@@ -3959,7 +3959,7 @@ int input_read_parameters_injection(struct file_content * pfc,
       //                               errmsg),
       //            errmsg,
       //            errmsg);
-      strcat(pth->DH_dist_file_name,"./DH_interface/");
+      strcpy(pth->DH_dist_file_name,"./DH_interface/");
       strcat(pth->DH_dist_file_name, string1);
       strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
       pth->run_DH_with_SD = _TRUE_;
@@ -4278,7 +4278,8 @@ int input_read_parameters_injection(struct file_content * pfc,
                                       errmsg),
                    errmsg,
                    errmsg);
-        strcat(pth->DH_dist_file_name,"./DH_interface/");
+
+        strcpy(pth->DH_dist_file_name,"./DH_interface/");
         strcat(pth->DH_dist_file_name, string1);
         strcat(pth->DH_dist_file_name,"_distortions_CLASSformat.txt");
 
