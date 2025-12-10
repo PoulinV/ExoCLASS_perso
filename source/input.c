@@ -4074,6 +4074,17 @@ int input_read_parameters_injection(struct file_content * pfc,
     // # strcat(pth->command_DH,"--rate_func_N "); //help="number of injections per volume per time in units of [cm^-3 s^-1]", type=)
     // # strcat(pth->command_DH,"--rate_func_eng "); //help="energy injected per volume per time in units of [eV cm^-3 s^-1]", type=)
     //
+    class_call(parser_read_string(pfc,"save_DH",&string2,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    if (flag1 == _TRUE_){
+      if (string_begins_with(string2,'y') || string_begins_with(string2,'Y')){
+        strcat(pth->command_DH," --save_DH True"); //help="If False, uses the baseline TLA solution to calculate. Default is True.", type=bool, default=True)
+      }
+      else {
+        strcat(pth->command_DH," --save_DH False");
+      }
+    }
     // # Key redshifts
     class_call(parser_read_double(pfc,"start_rs",&param3,&flag3,errmsg),
                errmsg,
