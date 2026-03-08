@@ -3055,7 +3055,8 @@ int thermodynamics_sources(
         /* get x */
         x = ptdw->x_reio;
         // printf("z %e > %e Tmat %e dTmat %e x %e\n",z,pth->DH_table[(pth->DH_z_size-1)*(2*pth->DH_th_size+1)],Tmat,dTmat, x );
-      }else{
+      }
+      else{
         class_call(array_interpolate(pth->DH_table,
                                      2*pth->DH_th_size+1,
                                      pth->DH_z_size,
@@ -3070,6 +3071,7 @@ int thermodynamics_sources(
         x = pvecDH[pth->index_DH_xe];
         Tmat = pvecDH[pth->index_DH_Tmat];
         dTmat = pvecDH[pth->index_DH_dTmat];
+        //printf("x %e z %e\n",x,z);
       }
 
       break;
@@ -3087,19 +3089,20 @@ int thermodynamics_sources(
 
   /* Smoothing if we are shortly after an approximation switch, i.e. if z is within 2 delta after the switch*/
   if ((ap_current != 0) && (z > ptdw->ap_z_limits[ap_current-1]-2*ptdw->ap_z_limits_delta[ap_current])) {
+    if(pth->recombination!=darkhistory){
+      class_call(thermodynamics_ionization_fractions(z,y,pba,pth,ptw,ap_current-1),
+                 pth->error_message,
+                 error_message);
 
-    class_call(thermodynamics_ionization_fractions(z,y,pba,pth,ptw,ap_current-1),
-               pth->error_message,
-               error_message);
+      x_previous = ptdw->x_reio;
+      // get s from 0 to 1
+      s = (ptdw->ap_z_limits[ap_current-1]-z)/(2*ptdw->ap_z_limits_delta[ap_current]);
+      // infer f2(x) = smooth function interpolating from 0 to 1
+      weight = f2(s);
 
-    x_previous = ptdw->x_reio;
-    // get s from 0 to 1
-    s = (ptdw->ap_z_limits[ap_current-1]-z)/(2*ptdw->ap_z_limits_delta[ap_current]);
-    // infer f2(x) = smooth function interpolating from 0 to 1
-    weight = f2(s);
-
-    /* get smoothed x */
-    x = weight*x+(1.-weight)*x_previous;
+      /* get smoothed x */
+      x = weight*x+(1.-weight)*x_previous;
+    }
   }
 
   /** - Store the results in the table. Results are obtained in order of decreasing z, and stored in order of growing z */
