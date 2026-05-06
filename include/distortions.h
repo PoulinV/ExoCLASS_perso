@@ -107,6 +107,7 @@ struct distortions
   int index_type_mu;               /**< mu type distortion */
   int index_type_y;                /**< y type distortion */
   int index_type_PCA;              /**< PCA type distortion (first index) */
+  int index_type_residuals;              /**< residuals type distortion (first index) */
   int type_size;                   /**< Number of total components for the type array */
 
   /* Total distortion amplitude for residual distortions */
@@ -115,6 +116,7 @@ struct distortions
   double z_min_injection;
   /* Total heating function */
   double * dQrho_dz_tot;
+  double * exact_integrand_y;
 
   /* Total heating rate */
   double Drho_over_rho;
@@ -203,6 +205,7 @@ struct distortions
   short output_sd_at_highz; /**< Do we output at highz? default= no unless user require to use DarkHistory */
   short run_DarkAges_with_distortions; /**< Do we compute SD with DarkAges? */
   short apply_smoothing; /**< Do we smooth the SD residuals computed with DarkAges? */
+  int exact_y; /**< Do we compute exact y? Eq 5 in https://arxiv.org/pdf/2303.07366*/ 
   int nbins_smoothing; /**< if yes, how many bins? */
   int add_SD_to_CLASS;                             /**< do we add DarkAges or DarkHistory SD to the CLASS output or overwrite it? */
   //@}

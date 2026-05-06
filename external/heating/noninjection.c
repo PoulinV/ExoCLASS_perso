@@ -321,8 +321,11 @@ int noninjection_rate_adiabatic_cooling(struct noninjection * pni,
 
   /** Calculate heating rates */
   // *energy_rate = -pni->heat_capacity*pni->H*pni->T_g;                                               // [J/(m^3 s)]
-  *energy_rate = -pni->heat_capacity*(pni->dT_b+2*pni->H*pni->T_b);                                    // [J/(m^3 s)]
-
+  *energy_rate = -pni->heat_capacity*(pni->dT_b+2*pni->H*pni->T_b);                                    // [J/(m^3 s)] Gamma_C * (T_m-T_cmb) = energy_rate
+  // *energy_rate = -pni->heat_capacity*(pni->dT_b+2*pni->H*pni->T_b);                                    // [J/(m^3 s)] Gamma_C * (T_m-T_cmb) * heat_capacity = energy_rate
+  // rate_gamma_b = ( 2. * _sigma_/_m_e_/_c_ ) * ( 4./3. * pvecback[pba->index_bg_rho_g] * _Jm3_over_Mpc2_ ) * x / (1.+x+ptw->fHe);
+  // *energy_rate = pni->heat_capacity*(pni->T_b-pni->T_g)*_sigma_/_m_e_*pni->nH*pni->x_e*pni->rho_g;
+  // printf("z %e highz experssion %e low z expression %e new expression %e\n",z,-pni->heat_capacity*pni->H*pni->T_g,-pni->heat_capacity*(pni->dT_b+2*pni->H*pni->T_b),pni->heat_capacity*(pni->T_b-pni->T_g)*_sigma_/_m_e_*pni->nH*pni->x_e*pni->rho_g);
   return _SUCCESS_;
 
 }

@@ -65,9 +65,7 @@ int distortions_init(struct precision * ppr,
   if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 0){
     //this step is mandatory when running DH with SD during the first iteration of the code.
     psd->output_sd_at_highz = _TRUE_;
-    if (psd->z_output_sd <= 0.) {
-      psd->z_output_sd = 3000.; // default handoff redshift for DarkHistory
-    }
+    psd->z_output_sd = 3000; //update to default value.
     psd->add_SD_to_CLASS = _FALSE_; //with DH we compute the full distortions starting from what CLASS has computed down to z=3000. We thus overwrite the output of CLASS instead of adding to it
   }
   else if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 1){
@@ -156,9 +154,7 @@ int distortions_free(struct distortions * psd) {
 
     /** Delete heating functions */
     free(psd->dQrho_dz_tot);
-    if(psd->exact_y == _TRUE_){
-        free(psd->exact_integrand_y);
-    }
+
     /** Delete distortion shapes */
     for (index_type=0;index_type<psd->type_size;++index_type){
       free(psd->sd_shape_table[index_type]);
@@ -842,9 +838,8 @@ int distortions_compute_heating_rate(struct precision* ppr,
 
   int index_z;
   double tau;
-  int last_index_back,last_index_thermo;
+  int last_index_back;
   double *pvecback;
-  double * pvecthermo;
   double heat;
   double H, a, rho_g;
 
@@ -859,42 +854,23 @@ int distortions_compute_heating_rate(struct precision* ppr,
 
   /** Allocate space for background vector */
   last_index_back = 0;
-    last_index_thermo = 0;
   class_alloc(pvecback,
               pba->bg_size*sizeof(double),
-              psd->error_message);
-  class_alloc(pvecthermo,
-              pth->th_size*sizeof(double),
               psd->error_message);
 
   /** Allocate space for total heating function */
   class_alloc(psd->dQrho_dz_tot,
               psd->z_size*sizeof(double*),
               psd->error_message);
-  if(psd->exact_y == _TRUE_){
-    /** Allocate space for exact integrand function */
-    /** (T_M-T_CMB)sigma_Tn_e / m_e */
-    /** see eg. https://arxiv.org/pdf/2303.07366 Eq 5 */
-    class_alloc(psd->exact_integrand_y,
-                psd->z_size*sizeof(double*),
-                psd->error_message);
-  }
-
 
 
   /* Loop over z and calculate the heating at each point */
   for (index_z=0; index_z<psd->z_size; ++index_z){
-    // printf("psd->z[index_z] %e \n", psd->z[index_z]);
 
     if(psd->z[index_z] < psd->z_output_sd){
       //ignore distortions if z < z_min; useful to compute the distortions created by injection up to a given z.
       // printf("psd->z[index_z] %e \n", psd->z[index_z]);
       psd->dQrho_dz_tot[index_z] = 0;
-
-      if(psd->exact_y == _TRUE_){
-        psd->exact_integrand_y[index_z] = 0;
-      }
-
     }else{
       /** Import quantities from background structure */
       class_call(background_tau_of_z(pba,
@@ -937,39 +913,6 @@ int distortions_compute_heating_rate(struct precision* ppr,
       /** Calculate total heating rate */
       psd->dQrho_dz_tot[index_z] = heat*a/(H*rho_g);                // [-]
       // printf("%e %e\n",psd->z[index_z], heat);
-
-
-      if(psd->exact_y == _TRUE_){
-        /** - get background/thermo quantities in this point */
-        class_call(thermodynamics_at_z(pba,
-                                       pth,
-                                       psd->z[index_z],  /* redshift z=1/a-1 */
-                                       inter_closeby,
-                                       &last_index_thermo,
-                                       pvecback,
-                                       pvecthermo),
-                   pth->error_message,
-                   psd->error_message);
-
-         double Tgamma = pba->T_cmb * (1.+psd->z[index_z]);
-         double dT     = pvecthermo[pth->index_th_Tb] - Tgamma;
-
-         /* physical electron density */
-         double ne_phys = pvecthermo[pth->index_th_xe] * pth->n_e * pow(1.+psd->z[index_z],3);
-
-         /* dt/dz = -1/[(1+z) H]  and  (1+z)=1/a  -> dt/dz = -a/H */
-         double H_in_sec = H;                                                              // [1/s]
-
-         double dtaudz =  a / H_in_sec;
-
-         /* dimensionless temperature ratio */
-         double thetae = ne_phys * _sigma_ * _c_ *  _k_B_ * dT / (_m_e_ * _c_ * _c_);
-         // printf("psd->z[index_z] %e dT %e\n",psd->z[index_z],dT,s );
-         /* dy/dz */
-         psd->exact_integrand_y[index_z] = 4. * thetae * dtaudz;
-        // psd->exact_integrand_y[index_z] = 4*(pvecthermo[pth->index_th_Tb]-pba->T_cmb*(1+psd->z[index_z]))* _sigma_/_m_e_/_c_ * pvecthermo[pth->index_th_xe]*pth->n_e*pow(1.+psd->z[index_z],3)*a/H;
-      }
-
 
     }
     }
@@ -1025,7 +968,6 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
   for (index_type=0; index_type<psd->type_size; ++index_type){
     if (index_type==psd->index_type_residuals) psd->sd_parameter_table[index_type]=0;
     else{
-
     class_call(array_trapezoidal_convolution(psd->dQrho_dz_tot,
                                              psd->br_table[index_type],
                                              psd->z_size,
@@ -1034,18 +976,6 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
                                              psd->error_message),
                psd->error_message,
                psd->error_message);
-      if (index_type==psd->index_type_y && psd->exact_y == _TRUE_){
-        class_call(array_trapezoidal_convolution(psd->exact_integrand_y,
-                                                 psd->br_table[index_type],
-                                                 psd->z_size,
-                                                 psd->z_weights,
-                                                 &(psd->sd_parameter_table[index_type]),
-                                                 psd->error_message),
-                   psd->error_message,
-                   psd->error_message);
-      }
-
-
     }
     if (index_type>=psd->index_type_PCA) {
       /* The S_k are not properly normalized, we have to renormalize here */
@@ -1196,8 +1126,8 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
       // psd->add_SD_to_CLASS  = _FALSE_;
       //this means we are using DH to compute distortions. Now add in those distortions.
       for (index_x=0;index_x<psd->x_size;++index_x){
-	                // if(psd->run_DarkAges_with_distortions == _TRUE_){
-	                  x=psd->x[index_x]*psd->x_to_nu;
+                // if(psd->run_DarkAges_with_distortions == _TRUE_){
+                  x=psd->x[index_x]*psd->x_to_nu;
                 // }
                 // else{
                 //   x=psd->x[index_x];
@@ -1222,22 +1152,23 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
                                                           &(DH_distortion),
                                                           psd->error_message),
                       psd->error_message,
-	                      psd->error_message);
-	                    DH_distortion /= (1e26*psd->DI_units);
-	                }
-		                if(psd->add_SD_to_CLASS == _TRUE_){
-	                  //default for DarkAges: what is computed  is the residual distortion, we add it to the CLASS computation.
-	                  psd->DI[index_x] += DH_distortion;
-	                  psd->sd_table[psd->index_type_residuals][index_x] = DH_distortion;
+                      psd->error_message);
+                    DH_distortion /= (1e26*psd->DI_units);
+                }
+
+                if(psd->add_SD_to_CLASS == _TRUE_){
+                  //default for DarkAges: what is computed  is the residual distortion, we add it to the CLASS computation.
+                  psd->DI[index_x] += DH_distortion;
+                  psd->sd_table[psd->index_type_residuals][index_x] = DH_distortion;
                 }
                 else{
                   //default for DarkHistory: what is computed  is the total distortions, using the input from CLASS at z=3000. We overwrite CLASS computation.
                   psd->sd_table[psd->index_type_residuals][index_x] =DH_distortion-psd->DI[index_x];
                   psd->DI[index_x] = DH_distortion;
 
-	                }
-		          }
-	  }
+                }
+          }
+  }
     if(psd->include_DH_SMresidual_distortions == _TRUE_){
 
 
@@ -2115,7 +2046,6 @@ int distortions_output_heat_titles(struct distortions * psd,
   class_store_columntitle(titles,"Redshift z",_TRUE_);
   class_store_columntitle(titles,"Heat  [-]",_TRUE_);
   class_store_columntitle(titles,"LHeat [-]",_TRUE_);
-  class_store_columntitle(titles,"exact integrand y [-]",psd->exact_y);
 
   return _SUCCESS_;
 }
@@ -2141,7 +2071,6 @@ int distortions_output_heat_data(struct distortions * psd,
     class_store_double(dataptr, psd->z[index_z], _TRUE_, storeidx);
     class_store_double(dataptr, psd->dQrho_dz_tot[index_z], _TRUE_, storeidx);
     class_store_double(dataptr, psd->dQrho_dz_tot[index_z]*(1.+psd->z[index_z]), _TRUE_, storeidx);
-    class_store_double(dataptr, psd->exact_integrand_y[index_z], psd->exact_y, storeidx);
   }
 
   return _SUCCESS_;
@@ -2212,6 +2141,7 @@ int distortions_output_sd_data(struct distortions * psd,
     class_store_double(dataptr, psd->DI[index_x]*1.e26*psd->DI_units, _TRUE_,storeidx);
     for (index_type=0;index_type<psd->type_size;++index_type){
       class_store_double(dataptr, psd->sd_table[index_type][index_x]*1.e26*psd->DI_units, _TRUE_,storeidx);
+      printf("%d %e\n",index_type,psd->sd_table[index_type][index_x]*1.e26*psd->DI_units);
     }
   }
 

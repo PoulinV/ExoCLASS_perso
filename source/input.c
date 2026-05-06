@@ -1486,6 +1486,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
       else
         rho_dr_today = 0.;
       output[i] = -(rho_dcdm_today+rho_dr_today)/(ba.H0*ba.H0)+ba.Omega0_dcdmdr;
+      if(output[i]<0)output[i]=0;
       break;
     case sigma8:
       output[i] = fo.sigma8[fo.index_pk_m];
@@ -4293,7 +4294,7 @@ int input_read_parameters_injection(struct file_content * pfc,
                      errmsg,
                      errmsg);
 
-        if ((flag1 == _TRUE_) && ((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL))) {
+        if ((flag3 == _TRUE_) && ((strstr(string3,"y") != NULL) || (strstr(string3,"Y") != NULL))) {
             strcat(pth->command_DH," --init_distort_file SD_highz.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         }else{
           strcat(pth->command_DH," --init_distort_file ");
@@ -5960,6 +5961,7 @@ int input_read_parameters_distortions(struct file_content * pfc,
   class_read_flag("sd_only_exotic",psd->include_only_exotic);
   class_read_flag("include_adiabatic_cooling",psd->include_adiabatic_cooling);
   class_read_flag("include_acoustic_dissipation",psd->include_acoustic_dissipation);
+  class_read_flag("exact_y",psd->exact_y);
 
   /** 3) Include g distortions? */
   class_read_flag("sd_include_g_distortion",psd->include_g_distortion);
@@ -6922,7 +6924,7 @@ int input_default_params(struct background *pba,
   /** 4) Additional y or mu parameters? */
   psd->sd_add_y = 0.;
   psd->sd_add_mu = 0.;
-
+  psd->exact_y = _FALSE_;
   /** 5) Include SZ effect from reionization? */
   psd->has_SZ_effect = _FALSE_;
   /** 5.a) What type of approximation you want to use for the SZ effect? */
