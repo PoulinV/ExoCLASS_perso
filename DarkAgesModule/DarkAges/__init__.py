@@ -292,12 +292,12 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 #
 def _spectral_distortions_init_and_dump():
 	global spectral_distortions_functions
-	spectral_distortions_functions = spectral_distortions(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.dat'))
-	spectral_distortions_dump(spectral_distortions_functions, os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.obj'))
+	spectral_distortions_functions = spectral_distortions(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.dat'))
+	spectral_distortions_dump(spectral_distortions_functions, os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.obj'))
 
 def _spectral_distortions_load_from_dump():
 	global spectral_distortions_functions
-	spectral_distortions_functions = spectral_distortions_load( os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.obj') )
+	spectral_distortions_functions = spectral_distortions_load( os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.obj') )
 
 #################################
 
@@ -306,7 +306,7 @@ if (spectral_distortions_functions is None):
 	spectral_distortions_functions = np.empty(shape=1, dtype=spectral_distortions)
 
 	spectral_distortions_is_initialized = True
-	spectral_distortions_is_initialized = spectral_distortions_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_logeng.obj'))
+	spectral_distortions_is_initialized = spectral_distortions_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.obj'))
 
 	if not spectral_distortions_is_initialized:
 		print_info('The spectral distortion function seem not to be initialized. This will be done now. this may take a few seconds.')

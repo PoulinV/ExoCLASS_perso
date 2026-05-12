@@ -107,6 +107,7 @@ cdef extern from "class.h":
 
     cdef struct thermodynamics:
         ErrorMsg error_message
+        short run_DH_with_SD
         int th_size
         int index_th_xe
         int index_th_Tb
@@ -351,6 +352,7 @@ cdef extern from "class.h":
 
     cdef struct distortions:
         double * sd_parameter_table
+        double ** sd_table
         int index_type_g
         int index_type_mu
         int index_type_y
@@ -362,6 +364,7 @@ cdef extern from "class.h":
         double x_to_nu
         int has_distortions
         int x_size
+        int loop_over_CLASS_for_DH
         ErrorMsg error_message
 
     cdef struct lensing:
@@ -573,6 +576,8 @@ cdef extern from "class.h":
     int fourier_hmcode_window_nfw(void* pfo, double k, double rv, double c, double* window_nfw)
 
     int fourier_k_nl_at_z(void* pba, void* pfo, double z, double* k_nl, double* k_nl_cb)
+
+    int distortions_output_sd_data(void * psd, int number_of_titles, double * data)
 
     int harmonic_firstline_and_ic_suffix(void *ppt, int index_ic, char first_line[1024], FileName ic_suffix)
 

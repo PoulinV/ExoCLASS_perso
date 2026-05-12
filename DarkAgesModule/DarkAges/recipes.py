@@ -407,11 +407,22 @@ def spec_elec_and_phot(fnames,mass,  logEnergies=None, redshift=None, t_dec=np.i
 
     	else:
             spectra = np.empty(shape=(3,1,len(fnames)), dtype=np.float64)
+            electron_mass_eV = 510998.9461
+            has_dirac_electron = any(fname == 'Dirac_electron' or fname == 'dirac_electron' for fname in fnames)
+            has_dirac_photon = any(fname == 'Dirac_photon' or fname == 'dirac_photon' for fname in fnames)
+            if has_dirac_electron and has_dirac_photon:
+                raise DarkAgesError('Mixed dirac_electron and dirac_photon spectra need separate kinetic/total energy grids.')
             if hist == 'decay':
-                logEnergies = np.ones((1,))*np.log10(1e9*0.5*mass)
+                energy_eV = 1e9*0.5*mass
+                if has_dirac_electron:
+                    energy_eV -= electron_mass_eV
+                logEnergies = np.ones((1,))*np.log10(max(energy_eV, 0.0))
                 # print(logEnergies)
             elif hist == 'annihilation' or hist =='annihilation_halos':
-                logEnergies = np.ones((1,))*np.log10(1e9*mass)
+                energy_eV = 1e9*mass
+                if has_dirac_electron:
+                    energy_eV -= electron_mass_eV
+                logEnergies = np.ones((1,))*np.log10(max(energy_eV, 0.0))
             else:
                 raise DarkAgesError('The \'dirac-mode\' is not compatible with the history "{:s}". I am so sorry.'.format(hist))
             for idx, fname in enumerate(fnames):

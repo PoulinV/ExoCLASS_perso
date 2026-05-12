@@ -232,8 +232,8 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 	energy_integral = np.zeros( shape=(len(z_dep),len(z_inj)), dtype=np.float64)
 	#print(len(energy_integral))
 	Enj = logConversion(transfer_functions_log10E)
-	Eelec=max(E-2*510998.9461,0)*np.ones_like(E)
-	# Eelec=E
+	# Electron spectra are defined on kinetic-energy grids.
+	Eelec = E
 	# print(E,Eelec)
 	# print(Eelec)
 	for i in range(len(z_dep)):
@@ -254,7 +254,7 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 			                          int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(Eelec[:]**1)
 			             else:
 			                          int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
-			                          int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],E)*spec_elec[:,k]*(Eelec[:]**1)
+			                          int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],Eelec)*spec_elec[:,k]*(Eelec[:]**1)
 			             if len(E) > 1:
 			                          energy_integral[i][k] = trapz( int_phot, E )+trapz( int_elec, Eelec)
 			             else:

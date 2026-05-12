@@ -166,7 +166,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     # need_to_interpolate = False
     energy_integral = np.zeros( shape=(len(frequency),len(z_injected)), dtype=np.float64)
     Enj = transfer_functions_E
-    Eelec=max(E-2*510998.9461,0)*np.ones_like(E)
+    # Electron spectra are defined on kinetic-energy grids.
+    Eelec = E
 
     for i in range(len(frequency)): ##loop over frequency
         # print(frequency[i])

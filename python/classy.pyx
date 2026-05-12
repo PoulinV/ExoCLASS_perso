@@ -435,6 +435,8 @@ cdef class Class:
             self.ncp.add("lensing")
 
         if "distortions" in level:
+            if self.th.run_DH_with_SD == _TRUE_:
+                self.sd.loop_over_CLASS_for_DH = 1
             if distortions_init(&(self.pr), &(self.ba), &(self.th),
                                 &(self.pt), &(self.pm), &(self.sd)) == _FAILURE_:
                 self.struct_cleanup()
@@ -2795,6 +2797,25 @@ make        nonlinear_scale_cb(z, z_size)
           sd_amp[i] = self.sd.DI[i]*self.sd.DI_units*1.e26
           sd_nu[i] = self.sd.x[i]*self.sd.x_to_nu
         return sd_nu,sd_amp
+
+    def spectral_distortion_components(self):
+        if self.sd.x_size == 0 or self.sd.type_size == 0:
+          raise CosmoSevereError("No spectral distortions have been calculated. Check that the output contains 'Sd' and the compute level is at least 'distortions'.")
+        cdef np.ndarray[DTYPE_t, ndim=1] sd_nu = np.zeros(self.sd.x_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=2] sd_components = np.zeros((self.sd.type_size,self.sd.x_size),'float64')
+        for i in range(self.sd.x_size):
+          sd_nu[i] = self.sd.x[i]*self.sd.x_to_nu
+          for j in range(self.sd.type_size):
+            sd_components[j,i] = self.sd.sd_table[j][i]*self.sd.DI_units*1.e26
+        return sd_nu,sd_components
+
+    def spectral_distortion_output(self):
+        if self.sd.x_size == 0 or self.sd.type_size == 0:
+          raise CosmoSevereError("No spectral distortions have been calculated. Check that the output contains 'Sd' and the compute level is at least 'distortions'.")
+        cdef int number_of_titles = self.sd.type_size + 3
+        cdef np.ndarray[DTYPE_t, ndim=2] sd_output = np.zeros((self.sd.x_size,number_of_titles),'float64')
+        distortions_output_sd_data(&self.sd, number_of_titles, <double*> sd_output.data)
+        return sd_output
 
 
     def get_sources(self):
