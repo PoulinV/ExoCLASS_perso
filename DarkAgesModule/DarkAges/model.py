@@ -273,7 +273,8 @@ class decaying_model(model):
 		def _decay_scaling(redshift, spec_point, lifetime):
 			from .common import time_at_z
 			ret = spec_point*np.exp(-time_at_z(redshift) / lifetime)
-            #check whether this exp factor should be here.
+			# Keep depletion in the injected spectra. The resulting transfer
+			# table is normalized to the undepleted reference decay rate.
 			return ret
 
 		if logEnergies is None:

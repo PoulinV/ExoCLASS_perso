@@ -26,6 +26,8 @@ int injection_init(struct precision * ppr,
   /** - Define local variable */
   struct injection* pin = &(pth->in);
   int index_inj, index_dep;
+  int background_arguments_size;
+  char background_arguments[256];
 
   /** - Initialize flags, indices and parameters */
   pin->has_DM_ann = _FALSE_;
@@ -49,6 +51,29 @@ int injection_init(struct precision * ppr,
   pin->Omega0_b = pba->Omega0_b;                                                                    // [-]
   pin->Omega0_cdm = pba->Omega0_cdm;                                                                // [-]
   pin->rho0_cdm = pba->Omega0_cdm*pow(pin->H0,2)*3/8./_PI_/_G_*_c_*_c_;                             // [J/m^3]
+
+  /* Match the analytic DarkAges background to the sampled CLASS parameters.
+     Omega0_m and Omega0_r are only available after background_init(), so
+     append them here rather than while parsing the input file. */
+  if(pin->DM_decay_table_uses_undepleted_rate == _TRUE_){
+    class_test(strstr(pin->command_fz," --use-background ") != NULL,
+               pin->error_message,
+               "The built-in DarkAges command already contains CLASS background arguments; reparse the input before reinitializing injection.");
+    background_arguments_size = snprintf(background_arguments,
+                                         sizeof(background_arguments),
+                                         " --use-background %.17g %.17g %.17g",
+                                         pba->H0*_c_/1.e3,
+                                         pba->Omega0_m,
+                                         pba->Omega0_r);
+    class_test(background_arguments_size < 0 ||
+               background_arguments_size >= (int)sizeof(background_arguments),
+               pin->error_message,
+               "Could not format the CLASS background parameters for DarkAges.");
+    class_test(strlen(pin->command_fz)+(size_t)background_arguments_size >= sizeof(pin->command_fz),
+               pin->error_message,
+               "The built-in DarkAges command is too long after adding the CLASS background parameters.");
+    strcat(pin->command_fz,background_arguments);
+  }
 
   /* Thermodynamics structure */
   pin->fHe = pth->fHe;                                                                              // [-]
@@ -334,6 +359,7 @@ int injection_calculate_at_z(struct background* pba,
   int index_dep;
   double h,a,b;
   double dEdt_inj;
+  double dEdt_for_deposition;
 
   /** - Store input parameters in struct */
   pin->T_b = Tmat;                                                                                  // [K]
@@ -392,9 +418,23 @@ int injection_calculate_at_z(struct background* pba,
              pin->error_message,
              pin->error_message);
 
+  dEdt_for_deposition = dEdt_inj;
+  if(pin->DM_decay_table_uses_undepleted_rate == _TRUE_){
+    class_test(pin->has_DM_ann == _TRUE_ ||
+               pin->has_PBH_eva == _TRUE_ ||
+               pin->has_PBH_acc == _TRUE_,
+               pin->error_message,
+               "A built-in DarkAges decay table cannot be combined with another exotic injection mechanism.");
+    class_call(injection_rate_DM_decay_for_deposition(pin,
+                                                      z,
+                                                      &dEdt_for_deposition),
+               pin->error_message,
+               pin->error_message);
+  }
+
   /** - Put result into deposition vector */
   for(index_dep = 0; index_dep < pin->dep_size; ++index_dep){
-    pin->pvecdeposition[index_dep] = pin->chi[index_dep]*dEdt_inj;
+    pin->pvecdeposition[index_dep] = pin->chi[index_dep]*dEdt_for_deposition;
     // printf("dep %e chi %e \n",dEdt_inj, pin->chi[index_dep]);
   }
 
@@ -1047,6 +1087,34 @@ int injection_rate_DM_decay(struct injection * pin,
 
 
 /**
+ * Return the rate that normalizes the decay deposition function.
+ *
+ * The built-in, channel-resolved DarkAges table already contains the
+ * survival probability at the injection redshift and is normalized to
+ * Q0 = rho_cdm*f_chi*Gamma.  Use Q0 while that table is active; retain the
+ * physical instantaneous rate in the high-redshift on-the-spot branch.
+ */
+int injection_rate_DM_decay_for_deposition(struct injection * pin,
+                                           double z,
+                                           double * energy_rate){
+  if((pin->DM_decay_table_uses_undepleted_rate == _TRUE_) &&
+     (pin->f_eff_type == DarkAges) &&
+     (pin->chi_type == no_factorization) &&
+     (z <= pin->z_start_chi_approx) &&
+     (z <= pin->DM_decay_table_max_z)){
+    *energy_rate = pin->rho_cdm*pin->DM_decay_fraction*pin->DM_decay_Gamma;
+  }
+  else{
+    class_call(injection_rate_DM_decay(pin,z,energy_rate),
+               pin->error_message,
+               pin->error_message);
+  }
+
+  return _SUCCESS_;
+}
+
+
+/**
  * Determines time evolution of the primordial black hole (PBH) mass.
  * The conventions adopted here are the same as in Stoecker et al. 2018.
  *
@@ -1601,6 +1669,22 @@ int injection_read_chi_z_from_file(struct precision* ppr,
                pin->error_message,
                "could not read value of parameters coefficients in line %i in file '%s'\n",
                index_z+headlines,chi_z_file);
+  }
+
+  if(pin->DM_decay_table_uses_undepleted_rate == _TRUE_){
+    class_test(pin->chiz_size < 3,
+               pin->error_message,
+               "The built-in DarkAges decay table is too short to identify its physical redshift range.");
+    /* finalize() adds artificial first and last rows for CLASS. The
+       penultimate row is the largest redshift supported by the transfer
+       functions rather than an extrapolated boundary value. */
+    pin->DM_decay_table_max_z =
+      pin->chiz_table[(pin->chiz_size-2)*(2*pin->dep_size+1)];
+    class_test(pin->z_start_chi_approx > pin->DM_decay_table_max_z,
+               pin->error_message,
+               "z_start_chi_approx=%g exceeds the DarkAges decay transfer-table limit z=%g.",
+               pin->z_start_chi_approx,
+               pin->DM_decay_table_max_z);
   }
 
   // fclose(fA);

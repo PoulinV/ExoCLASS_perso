@@ -32,6 +32,8 @@ struct injection{
   double DM_decay_fraction;
   double DM_decay_Gamma;
   double DM_decay_mass;
+  short DM_decay_table_uses_undepleted_rate; /**< built-in DarkAges decay tables are normalized to rho_cdm f_chi Gamma */
+  double DM_decay_table_max_z; /**< largest physical deposition redshift in the DarkAges table (CLASS z convention) */
 
   double PBH_evaporation_fraction;
   double PBH_evaporation_mass;
@@ -265,6 +267,10 @@ extern "C" {
   int injection_rate_DM_decay(struct injection * phe,
                               double z,
                               double * energy_rate);
+
+  int injection_rate_DM_decay_for_deposition(struct injection * phe,
+                                             double z,
+                                             double * energy_rate);
 
   int injection_rate_PBH_evaporation_mass_evolution(struct background * pba,
                                                     struct injection * phe);

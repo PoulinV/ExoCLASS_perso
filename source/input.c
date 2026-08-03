@@ -3686,6 +3686,13 @@ int input_read_parameters_injection(struct file_content * pfc,
           strcat(pin->command_fz, "python ");
           strcat(pin->command_fz,__CLASSDIR__);
 
+          class_test((pin->DM_annihilation_efficiency > 0 ? 1 : 0) +
+                     (pin->PBH_evaporation_mass > 0 ? 1 : 0) +
+                     (pin->PBH_accretion_mass > 0 ? 1 : 0) +
+                     (pin->DM_decay_fraction > 0 ? 1 : 0) > 1,
+                     errmsg,
+                     "DarkAges_mode=built_in supports only one exotic injection mechanism at a time.");
+
           /* Check first if injection history is standard and already implemented */
 
           /* Automatic comand for annihialtion without halo boost*/
@@ -3800,6 +3807,11 @@ int input_read_parameters_injection(struct file_content * pfc,
             strcat(pin->command_fz," --n_cdm=");
             sprintf(string2,"%g",pin->DM_decay_fraction*pba->Omega0_cdm*pow(pba->H0,2)*_GeVcm3_over_Mpc2_/pin->DM_decay_mass); //in per cm^3
             strcat(pin->command_fz,string2);
+
+            /* decaying_model includes exp[-t(z_inj)/tau] in the transfer
+               convolution and normalizes its output to the undepleted
+               reference rate rho_cdm*f_chi*Gamma. */
+            pin->DM_decay_table_uses_undepleted_rate = _TRUE_;
 
           }
 
@@ -3925,6 +3937,11 @@ int input_read_parameters_injection(struct file_content * pfc,
     //default is no factorization for DarkAges usage.
     pin->chi_type = no_factorization;
   }
+
+  class_test(pin->DM_decay_table_uses_undepleted_rate == _TRUE_ &&
+             pin->chi_type != no_factorization,
+             errmsg,
+             "Built-in DarkAges decay tables require 'chi_type = no_factorization' so that their undepleted-rate normalization is used only over the transfer-table range.");
 
   if (pin->chi_type == chi_from_x_file || pin->chi_type == chi_from_z_file){
     /** 6.a) External file */
@@ -6689,6 +6706,9 @@ int input_default_params(struct background *pba,
   pin->DM_decay_fraction = 0.;
   /** 2.b) Decay width */
   pin->DM_decay_Gamma = 0.;
+  /** 2.c) Normalization convention of an external decay-deposition table */
+  pin->DM_decay_table_uses_undepleted_rate = _FALSE_;
+  pin->DM_decay_table_max_z = 0.;
 
   /** 3) PBH evaporation */
   /** 3.a) Fraction */
