@@ -290,14 +290,32 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 	del transfer_is_initialized
 	del i
 #
+def _spectral_distortions_paths():
+	"""Return the active legacy spectral-distortion table and cache paths.
+
+	The environment override is primarily intended for validation against older
+	tables.  A relative override is resolved inside ``DH_interface``.
+	"""
+
+	dh_interface = os.path.abspath(os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface'))
+	default_name = 'tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_iter1_negdist_newbaseline.dat'
+	table_path = os.environ.get('DARKAGES_SD_TRANSFER_FILE', default_name)
+	if not os.path.isabs(table_path):
+		table_path = os.path.join(dh_interface, table_path)
+	cache_path = os.path.splitext(table_path)[0] + '.obj'
+	return table_path, cache_path
+
+
 def _spectral_distortions_init_and_dump():
 	global spectral_distortions_functions
-	spectral_distortions_functions = spectral_distortions(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.dat'))
-	spectral_distortions_dump(spectral_distortions_functions, os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.obj'))
+	table_path, cache_path = _spectral_distortions_paths()
+	spectral_distortions_functions = spectral_distortions(table_path)
+	spectral_distortions_dump(spectral_distortions_functions, cache_path)
 
 def _spectral_distortions_load_from_dump():
 	global spectral_distortions_functions
-	spectral_distortions_functions = spectral_distortions_load( os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.obj') )
+	_, cache_path = _spectral_distortions_paths()
+	spectral_distortions_functions = spectral_distortions_load(cache_path)
 
 #################################
 
@@ -305,8 +323,12 @@ if (spectral_distortions_functions is None):
 
 	spectral_distortions_functions = np.empty(shape=1, dtype=spectral_distortions)
 
-	spectral_distortions_is_initialized = True
-	spectral_distortions_is_initialized = spectral_distortions_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'../DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_negdist.obj'))
+	table_path, cache_path = _spectral_distortions_paths()
+	if not os.path.isfile(table_path):
+		raise DarkAgesError('The spectral-distortion transfer table is missing: {:s}'.format(table_path))
+	spectral_distortions_is_initialized = os.path.isfile(cache_path)
+	if spectral_distortions_is_initialized:
+		spectral_distortions_is_initialized = os.path.getmtime(cache_path) >= os.path.getmtime(table_path)
 
 	if not spectral_distortions_is_initialized:
 		print_info('The spectral distortion function seem not to be initialized. This will be done now. this may take a few seconds.')
