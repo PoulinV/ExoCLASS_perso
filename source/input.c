@@ -1710,6 +1710,41 @@ int input_read_parameters(struct file_content * pfc,
              errmsg,
              errmsg);
 
+  /* DarkHistory can either return a complete spectrum that replaces the
+     CLASS spectrum, or a y/mu-free residual that is added to the CLASS
+     templates.  Reject mixed routing, which would otherwise double count or
+     drop the thermal components. */
+  if (pth->recombination == darkhistory &&
+      pth->DH_mode == call_script &&
+      pth->run_DH_with_SD == _TRUE_) {
+    class_test(
+      !((psd->add_SD_to_CLASS == _FALSE_ &&
+         pth->DH_init_distort_component == dh_distortion_total &&
+         pth->DH_include_y_distortion == _TRUE_) ||
+        (psd->add_SD_to_CLASS == _TRUE_ &&
+         pth->DH_init_distort_component == dh_distortion_residual &&
+         pth->DH_include_y_distortion == _FALSE_)),
+      errmsg,
+      "In DarkHistory call_script mode, use either "
+      "DH_init_distort_component=total, DH_include_y_distortion=yes, "
+      "add_SD_to_CLASS=no (full spectrum), or "
+      "DH_init_distort_component=residual, DH_include_y_distortion=no, "
+      "add_SD_to_CLASS=yes (residual spectrum)."
+      );
+
+    if (pth->DH_init_distort_component == dh_distortion_residual) {
+      class_test(psd->output_sd_at_highz == _FALSE_,
+                 errmsg,
+                 "The DarkHistory residual route requires output_sd_at_highz=yes.");
+      class_test(psd->sd_branching_approx == bra_exact && psd->sd_PCA_size > 0,
+                 errmsg,
+                 "The DarkHistory residual route is not yet compatible with "
+                 "sd_branching_approx=exact and sd_PCA_size>0 because the PCA "
+                 "residual modes would be counted in both the DarkHistory "
+                 "handoff and the CLASS second pass.");
+    }
+  }
+
   /** Read obsolete parameters */
   class_call(input_read_parameters_additional(pfc,ppr,pba,pth,
                                               errmsg),
@@ -4318,6 +4353,35 @@ int input_read_parameters_injection(struct file_content * pfc,
           strcat(pth->command_DH,__CLASSDIR__);
           strcat(pth->command_DH,"/DH_interface/dummyfile.dat");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         }
+        class_call(parser_read_string(pfc,"DH_init_distort_component",&string2,&flag2,errmsg),
+                   errmsg,
+                   errmsg);
+        if (flag2 == _TRUE_){
+          class_test(strcmp(string2,"total") != 0 && strcmp(string2,"residual") != 0,
+                     errmsg,
+                     "The parameter 'DH_init_distort_component' must be either 'total' or 'residual'.");
+          if (strcmp(string2,"residual") == 0){
+            pth->DH_init_distort_component = dh_distortion_residual;
+          }
+          else{
+            pth->DH_init_distort_component = dh_distortion_total;
+          }
+        }
+        strcat(pth->command_DH," --init_distort_component ");
+        if (pth->DH_init_distort_component == dh_distortion_residual){
+          strcat(pth->command_DH,"residual");
+        }
+        else{
+          strcat(pth->command_DH,"total");
+        }
+
+        class_read_flag("DH_include_y_distortion",pth->DH_include_y_distortion);
+        if (pth->DH_include_y_distortion == _TRUE_){
+          strcat(pth->command_DH," --include_y_distortion True");
+        }
+        else{
+          strcat(pth->command_DH," --include_y_distortion False");
+        }
         strcat(pth->command_DH," --distort True");  //help="If True, calculate spectral distortions. Default is False.", type=bool, default=False) #action='store_true')
         class_call(parser_read_string(pfc,
                                       "DH_file_name",
@@ -6523,6 +6587,8 @@ int input_default_params(struct background *pba,
   pth->recfast_photoion_mode=recfast_photoion_Tmat;
 
   pth->run_DH_with_SD = _FALSE_;
+  pth->DH_init_distort_component = dh_distortion_total;
+  pth->DH_include_y_distortion = _TRUE_;
   /** 8) Parametrization of reionization */
   pth->reio_parametrization=reio_camb;
   /** 8.a) 'reio_camb' or 'reio_half_tanh' case */

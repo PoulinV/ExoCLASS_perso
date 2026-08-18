@@ -46,6 +46,9 @@ enum reionization_z_or_tau {
 /*VP: two ways of calling DH */
 enum DH_mode {from_file,call_script};
 
+/* Spectral component passed from CLASS to DarkHistory at the handoff. */
+enum DH_distortion_component {dh_distortion_total,dh_distortion_residual};
+
 
 /**
  * Two useful smooth step functions, for smoothing transitions in recfast.
@@ -193,6 +196,8 @@ struct thermodynamics
   int index_DH_dTmat;
   int DH_mode;
   short run_DH_with_SD;
+  enum DH_distortion_component DH_init_distort_component;
+  short DH_include_y_distortion;
 
   /** DarkHistory helium reionization quantities **/
   char reio_stars_helium_file[_MAXTITLESTRINGLENGTH_]; // Include file name for DH histories as input

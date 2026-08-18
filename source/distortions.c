@@ -68,7 +68,11 @@ int distortions_init(struct precision * ppr,
     if (psd->z_output_sd <= 0.) {
       psd->z_output_sd = 3000.; // default handoff redshift for DarkHistory
     }
-    psd->add_SD_to_CLASS = _FALSE_; //with DH we compute the full distortions starting from what CLASS has computed down to z=3000. We thus overwrite the output of CLASS instead of adding to it
+    /* Keep the value parsed from the input file.  Full-spectrum DarkHistory
+       runs leave add_SD_to_CLASS at its default false value, while a
+       y/mu-excluded DarkHistory run can explicitly request true so that the
+       imported cascade residual is combined with CLASS's g/y/mu templates on
+       the second pass. */
   }
   else if(pth->run_DH_with_SD == _TRUE_ && psd->loop_over_CLASS_for_DH == 1){
     //We have already output the file! no need to do it again.
