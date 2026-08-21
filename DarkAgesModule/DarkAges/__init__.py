@@ -45,6 +45,8 @@ redshift = None
 transfer_functions = None
 transfer_functions_corr = None
 spectral_distortions_functions = None
+lowz_heat_transfer_function = None
+lowz_spectral_distortions_functions = None
 CosmoBackground = None
 
 from .transfer import transfer, transfer_dump, transfer_load
@@ -109,6 +111,46 @@ class DarkAgesError(Exception):
 			return '\n\n!!! ERROR ({} - Reason: {}) !!!\n\n --> {} \n'.format(self.name,self.reason,self.message)
 		else:
 			return '\n\n!!! ERROR ({}) !!!\n\n --> {} \n'.format(self.name,self.message)
+
+
+def get_lowz_heat_transfer_function():
+	"""Load and cache the transfer function extending heating to low redshift."""
+
+	global lowz_heat_transfer_function
+	if lowz_heat_transfer_function is None:
+		path = os.path.join(
+			os.environ['DARKAGES_BASE'],
+			'transfer_functions/original/low-z/tf_heat_eps-7_mass_scan_lowz.dat'
+		)
+		if not os.path.isfile(path):
+			raise DarkAgesError('The low-z heating transfer table is missing: {:s}'.format(path))
+		print_info('Loading the low-z heating transfer function.')
+		lowz_heat_transfer_function = transfer(path)
+		print_warning(
+			'The low-z heating file stores single-injection f_heat rate responses '
+			'generated with dln(1+z)=0.016, not conservative transfer cells on its '
+			'21-point output grid. The loader exposes it for audits, but the heating '
+			'extension now rejects it before calling the legacy convolution. The upstream '
+			'heat/y convolution is unfinished, the 1+z=5 boundary is zero, and the bridge '
+			'from high-redshift injection is absent.'
+		)
+	return lowz_heat_transfer_function
+
+
+def get_lowz_spectral_distortions_functions():
+	"""Load and cache the transfer function extending distortions to low redshift."""
+
+	global lowz_spectral_distortions_functions
+	if lowz_spectral_distortions_functions is None:
+		path = os.path.join(
+			os.environ['DARKAGES_BASE'],
+			'transfer_functions/original/low-z/tf_nony_eps-7_mass_scan_lowz.dat'
+		)
+		if not os.path.isfile(path):
+			raise DarkAgesError('The low-z spectral-distortion table is missing: {:s}'.format(path))
+		print_info('Loading the low-z spectral-distortion transfer function.')
+		lowz_spectral_distortions_functions = spectral_distortions(path)
+	return lowz_spectral_distortions_functions
 
 
 
@@ -298,7 +340,7 @@ def _spectral_distortions_paths():
 	"""
 
 	dh_interface = os.path.abspath(os.path.join(os.environ['DARKAGES_BASE'], '../DH_interface'))
-	default_name = 'tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_iter1_negdist_newbaseline.dat'
+	default_name = 'tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_iter0_negdist_newbaseline.dat'
 	table_path = os.environ.get('DARKAGES_SD_TRANSFER_FILE', default_name)
 	if not os.path.isabs(table_path):
 		table_path = os.path.join(dh_interface, table_path)
