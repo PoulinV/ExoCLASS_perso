@@ -19,6 +19,41 @@ from copy import deepcopy as _dcp
 import numpy as np
 import dill
 
+
+def reshape_on_coordinate_grid(data, coordinate_rows, value_row):
+	"""Return a table indexed by sorted coordinate values.
+
+	The historical transfer files happened to be serialized in increasing
+	coordinate order, so a bare ``reshape`` gave the expected result.  Some of
+	the low-redshift bridge files are deliberately written with decreasing
+	injection redshift.  Assigning values through their coordinates makes the
+	loader independent of row order and prevents those columns from being
+	associated with the reversed redshift labels.
+	"""
+
+	coordinates = [
+		np.unique(data[row]).astype(np.float64) for row in coordinate_rows
+	]
+	shape = tuple(len(axis) for axis in coordinates)
+	expected_size = int(np.prod(shape))
+	if data.shape[1] != expected_size:
+		raise ValueError(
+			"Transfer table is not a complete Cartesian grid: found {:d} rows, "
+			"expected {:d}.".format(data.shape[1], expected_size)
+		)
+
+	indices = tuple(
+		np.searchsorted(axis, data[row])
+		for axis, row in zip(coordinates, coordinate_rows)
+	)
+	flat_indices = np.ravel_multi_index(indices, shape)
+	if np.unique(flat_indices).size != expected_size:
+		raise ValueError("Transfer table contains duplicate or missing grid cells.")
+
+	values = np.empty(shape, dtype=np.float64)
+	values[indices] = data[value_row]
+	return coordinates, values
+
 class transfer(object):
 	u"""
 	Container of the discretized transfer functions :math:`T_{klm}` and the
@@ -37,21 +72,15 @@ class transfer(object):
 			in increasing order.
 		"""
 
-		print('Initializing the transfer functions')
+		# Keep stdout machine-readable when DarkAges is invoked by CLASS.
 		data = np.genfromtxt(infile, unpack=True, usecols=(0,1,2,3,4), dtype=np.float64 )
-		self.z_injected = np.unique(data[2]).astype(np.float64)
-		self.z_deposited = np.unique(data[0]).astype(np.float64)
-#		self.z_injected = np.unique(data[2]).astype(np.float64)[::-1]
-#		self.z_deposited = np.unique(data[0]).astype(np.float64)[::-1]
-		# print(self.z_deposited,self.z_injected)
-		self.log10E = np.unique(data[1]).astype(np.float64)
-		# self.log10E = np.unique(np.log10(data[1])).astype(np.float64)
-		l1 = len(self.z_deposited)
-		l2 = len(self.log10E)
-		l3 = len(self.z_injected)
-		# print(l1,l2,l3)
-		self.transfer_phot = data[4].reshape(l1,l2,l3).astype(np.float64)
-		self.transfer_elec = data[3].reshape(l1,l2,l3).astype(np.float64)
+		coordinates, self.transfer_elec = reshape_on_coordinate_grid(
+			data, (0, 1, 2), 3
+		)
+		self.z_deposited, self.log10E, self.z_injected = coordinates
+		_, self.transfer_phot = reshape_on_coordinate_grid(
+			data, (0, 1, 2), 4
+		)
 		# print(len(self.transfer_elec[:,0,0]),len(self.transfer_elec[0,0,:]))
 #		print(self.transfer_phot[0,0,0],self.transfer_elec[0,0,0])
 

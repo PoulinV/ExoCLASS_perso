@@ -9,8 +9,9 @@ Collection of functions needed to calculate the energy deposition.
 from __future__ import absolute_import, division, print_function
 from builtins import range
 
-from scipy.integrate import trapz
+from scipy.integrate import quad, trapz
 from scipy.interpolate import interp1d
+from functools import lru_cache
 import os
 import sys
 import numpy as np
@@ -98,13 +99,32 @@ def H(redshift, H0 = None, Omega_M = None, Omega_R = None):
 	if Omega_R is None: Omega_R = get_background('Omega_r')
 	return H0 * np.sqrt( redshift**(3.) * Omega_M + redshift**(4.) * Omega_R + (1-Omega_R-Omega_M) )
 
+@lru_cache(maxsize=4096)
+def _time_at_z_scalar(redshift, H0, Omega_M, Omega_R):
+	"""Cosmic age for a flat radiation+matter+Lambda background."""
+
+	if redshift <= 0.0:
+		raise ValueError("1+z must be positive when evaluating cosmic time.")
+	Omega_Lambda = 1.0 - Omega_M - Omega_R
+	a_max = 1.0 / redshift
+
+	def integrand(scale_factor):
+		return scale_factor / np.sqrt(
+			Omega_R + Omega_M*scale_factor
+			+ Omega_Lambda*scale_factor**4
+		)
+
+	return quad(
+		integrand, 0.0, a_max, epsabs=0.0, epsrel=3.0e-11, limit=200
+	)[0] / H0
+
+
 def time_at_z(redshift, H0 = None, Omega_M = None, Omega_R = None):
 	u"""Returns time (in seconds) at a given redshift.
 
-	For simplicity it is assumed that only matter and radiation are present
-	and dark energy is negligible. Valid for high redshifts
-	(Taken from `EnergyAbsorptionCalculator.nb` provided as a supplement of
-	`arXiV:1211.0283 <https://arxig.org/abs/1211.0283>`_)
+	The integral uses the same flat radiation+matter+Lambda expansion history
+	as :func:`H`.  This matters for decay survival factors once the transfer
+	calculation is extended to redshifts of order unity and below.
 
 	Parameters
 	----------
@@ -130,7 +150,15 @@ def time_at_z(redshift, H0 = None, Omega_M = None, Omega_R = None):
 	if Omega_M is None: Omega_M = get_background('Omega_m')
 	if Omega_R is None: Omega_R = get_background('Omega_r')
 
-	return np.maximum(0., 2/(3 * Omega_M**2 * redshift * H0) * ( Omega_M * np.sqrt(Omega_R + (Omega_M / redshift)) + 2 * Omega_R**1.5 * redshift - 2 * Omega_R * np.sqrt(redshift*(Omega_M + redshift*Omega_R) ) ) )
+	input_redshift = np.asarray(redshift, dtype=np.float64)
+	flat_result = np.asarray([
+		_time_at_z_scalar(float(value), float(H0), float(Omega_M), float(Omega_R))
+		for value in input_redshift.reshape(-1)
+	], dtype=np.float64)
+	result = flat_result.reshape(input_redshift.shape)
+	if input_redshift.ndim == 0:
+		return float(result)
+	return result
 
 def conversion( redshift, alpha=3 ):
 	u"""Returns :math:`\\frac{\\left(z+1\\right)^\\alpha}{H(z)}`
@@ -162,7 +190,8 @@ def conversion( redshift, alpha=3 ):
 
 def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
                transfer_phot, transfer_elec,
-               spec_phot, spec_elec, alpha=3, **DarkOptions):
+               spec_phot, spec_elec, alpha=3, injection_mask=None,
+               deposition_normalization=None, **DarkOptions):
 	u"""Returns the effective efficiency factor :math:`f_c (z)`
 	for the deposition channel :math:`c`.
 
@@ -211,18 +240,43 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 		Array (:code:`shape = (k)`) of :math:`f_c (z)` at the redshifts of
 		deposition given in :code:`z_dep`
 	"""
+	z_inj = np.asarray(z_inj, dtype=np.float64)
+	z_dep = np.asarray(z_dep, dtype=np.float64)
+	if injection_mask is None:
+		injection_mask = np.ones(z_inj.shape, dtype=bool)
+	else:
+		injection_mask = np.asarray(injection_mask, dtype=bool)
+		if injection_mask.shape != z_inj.shape:
+			raise DarkAgesError(
+				'The transfer-function injection mask does not match its redshift grid.'
+			)
+
+	if deposition_normalization is None:
+		deposition_normalization = normalization
+	deposition_normalization = np.asarray(
+		deposition_normalization, dtype=np.float64
+	)
+	if deposition_normalization.ndim == 0:
+		deposition_normalization = np.full(
+			z_dep.shape, float(deposition_normalization), dtype=np.float64
+		)
+	if deposition_normalization.shape != z_dep.shape:
+		raise DarkAgesError(
+			'The spectrum normalization must be scalar or sampled on the '
+			'deposition-redshift grid.'
+		)
+
 	E = logConversion(log10E)
 	# print(E)
 
 	how_to_integrate = DarkOptions.get('E_integration_scheme','logE')
 	if how_to_integrate not in ['logE','energy']:
-		from .__init__ import DarkAgesError
 		raise DarkAgesError('The energy integration-scheme >> {0} << is not known'.format(how_to_integrate))
 	if len(E) == 1: how_to_integrate = 'energy' # Handling of a dirac-spectrum is inside the integration part w.r.t energy
-	norm = ( conversion(z_dep,alpha=alpha) )*( normalization )
+	norm = conversion(z_dep, alpha=alpha)*deposition_normalization
 
 	if (len(log10E) == len(transfer_functions_log10E)):
-		if np.any(abs(log10E - transfer_functions_log10E) <= 1e-9*log10E):
+		if np.allclose(log10E, transfer_functions_log10E, rtol=1e-9, atol=0.0):
 			need_to_interpolate = False
 		else:
 			need_to_interpolate = True
@@ -239,7 +293,9 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 	for i in range(len(z_dep)):
 		low= np.searchsorted(z_inj, z_dep[i])
 		if how_to_integrate == 'logE':
-			for k in range(len(z_inj[low:])):
+			for k in range(low,len(z_inj)):
+				if not injection_mask[k]:
+					continue
 				if not need_to_interpolate:
 					int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
 					int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
@@ -249,16 +305,24 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 				energy_integral[i][k] = trapz( int_phot + int_elec, log10E )
 		elif how_to_integrate == 'energy':
 			for k in range(low,len(z_inj)):
-			             if not need_to_interpolate:
-			                          int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
-			                          int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(Eelec[:]**1)
-			             else:
-			                          int_phot = evaluate_transfer(Enj,transfer_phot[i,:,k],E)*spec_phot[:,k]*(E[:]**1)
-			                          int_elec = evaluate_transfer(Enj,transfer_elec[i,:,k],Eelec)*spec_elec[:,k]*(Eelec[:]**1)
-			             if len(E) > 1:
-			                          energy_integral[i][k] = trapz( int_phot, E )+trapz( int_elec, Eelec)
-			             else:
-			                          energy_integral[i][k] = int_elec+int_phot
+				if not injection_mask[k]:
+					continue
+				if not need_to_interpolate:
+					int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*E[:]
+					int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*Eelec[:]
+				else:
+					int_phot = evaluate_transfer(
+						Enj, transfer_phot[i,:,k], E
+					)*spec_phot[:,k]*E[:]
+					int_elec = evaluate_transfer(
+						Enj, transfer_elec[i,:,k], Eelec
+					)*spec_elec[:,k]*Eelec[:]
+				if len(E) > 1:
+					energy_integral[i][k] = (
+						trapz(int_phot, E) + trapz(int_elec, Eelec)
+					)
+				else:
+					energy_integral[i][k] = int_elec + int_phot
 
                                       # int_elec = transfer_elec[i,:,k]*spec_elec[:,k]*(E[:]**1)
                             #     int_phot = transfer_phot[i,:,k]*spec_phot[:,k]*(E[:]**1)
@@ -301,7 +365,11 @@ def f_function(transfer_functions_log10E, log10E, z_inj, z_dep, normalization,
 		###NEW STUFF
 		low= np.searchsorted(z_inj, z_dep[i])
 		# print(i,energy_integral[i,low:])
-		integrand = ( conversion(z_inj[low:], alpha=alpha) )*energy_integral[i,low:]
+		integrand = (
+			conversion(z_inj[low:], alpha=alpha)
+			* energy_integral[i,low:]
+			* injection_mask[low:]
+		)
         # print(integrand,energy_integral[i,low:])
         #z_integral[i] = trapz( integrand, dummy[low:] )
 		z_integral[i] = integrand.sum()
@@ -649,6 +717,12 @@ def finalize(redshift, f_heat, f_lya, f_ionH, f_ionHe, f_lowE, **DarkOptions):
 	sys.stdout.write(50*'#'+'\n')
 	sys.stdout.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
 	sys.stdout.write(50*'#'+'\n\n')
+	if 'lowz_interpolation_handoff_z' in DarkOptions:
+		sys.stdout.write(
+			'# lowz_interpolation_handoff_z = {:.2e}\n'.format(
+				float(DarkOptions['lowz_interpolation_handoff_z'])
+			)
+		)
 	sys.stdout.write('#z_dep\tf_heat\tf_lya\tf_ionH\tf_ionHe\tf_lowE\n\n{:d}\n\n'.format( (last-first) + 2))
 	sys.stdout.write('{:.2e}\t{:.4e}\t{:.4e}\t{:.4e}\t{:.4e}\t{:.4e}\n'.format(min_z,f_heat[first],f_lya[first],f_ionH[first],f_ionHe[first],f_lowE[first]))
 	for idx in range(first,last):
@@ -699,6 +773,12 @@ def feff_finalize(redshift, f_eff, **DarkOptions):
 	sys.stdout.write(50*'#'+'\n')
 	sys.stdout.write('### This is the standardized output to be read by CLASS.\n### For the correct usage ensure that all other\n### "print(...)"-commands in your script are silenced.\n')
 	sys.stdout.write(50*'#'+'\n\n')
+	if 'lowz_interpolation_handoff_z' in DarkOptions:
+		sys.stdout.write(
+			'# lowz_interpolation_handoff_z = {:.2e}\n'.format(
+				float(DarkOptions['lowz_interpolation_handoff_z'])
+			)
+		)
 	sys.stdout.write('#z_dep\tf_feff\n\n{:d}\n\n'.format( (last-first) + 2))
 	sys.stdout.write('{:.2e}\t{:.4e}\n'.format(min_z,f_eff[first]))
 	for idx in range(first,last):

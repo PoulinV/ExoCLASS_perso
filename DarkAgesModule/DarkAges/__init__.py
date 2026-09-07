@@ -46,7 +46,9 @@ transfer_functions = None
 transfer_functions_corr = None
 spectral_distortions_functions = None
 lowz_heat_transfer_function = None
+lowz_heat_bridge_transfer_function = None
 lowz_spectral_distortions_functions = None
+lowz_spectral_distortions_bridge_functions = None
 CosmoBackground = None
 
 from .transfer import transfer, transfer_dump, transfer_load
@@ -113,44 +115,74 @@ class DarkAgesError(Exception):
 			return '\n\n!!! ERROR ({}) !!!\n\n --> {} \n'.format(self.name,self.message)
 
 
-def get_lowz_heat_transfer_function():
-	"""Load and cache the transfer function extending heating to low redshift."""
+def _require_transfer_table(relative_path, description):
+	path = os.path.join(os.environ['DARKAGES_BASE'], relative_path)
+	if not os.path.isfile(path):
+		raise DarkAgesError('The {} is missing: {:s}'.format(description, path))
+	return path
+
+
+def get_lowz_heat_transfer_functions():
+	"""Load the conservative low-low and high-to-low heating blocks."""
 
 	global lowz_heat_transfer_function
+	global lowz_heat_bridge_transfer_function
 	if lowz_heat_transfer_function is None:
-		path = os.path.join(
-			os.environ['DARKAGES_BASE'],
-			'transfer_functions/original/low-z/tf_heat_eps-7_mass_scan_lowz.dat'
+		path = _require_transfer_table(
+			'transfer_functions/original/low-z/'
+			'tf_heat_eps-7_mass_scan_summed_lowz.dat',
+			'low-z heating transfer table',
 		)
-		if not os.path.isfile(path):
-			raise DarkAgesError('The low-z heating transfer table is missing: {:s}'.format(path))
-		print_info('Loading the low-z heating transfer function.')
+		print_info('Loading the summed low-z heating transfer function.')
 		lowz_heat_transfer_function = transfer(path)
-		print_warning(
-			'The low-z heating file stores single-injection f_heat rate responses '
-			'generated with dln(1+z)=0.016, not conservative transfer cells on its '
-			'21-point output grid. The loader exposes it for audits, but the heating '
-			'extension now rejects it before calling the legacy convolution. The upstream '
-			'heat/y convolution is unfinished, the 1+z=5 boundary is zero, and the bridge '
-			'from high-redshift injection is absent.'
+	if lowz_heat_bridge_transfer_function is None:
+		path = _require_transfer_table(
+			'transfer_functions/original/low-z/'
+			'tf_heat_eps-7_mass_scan_summed_highinj_lowdep.dat',
+			'high-injection/low-deposition heating bridge',
 		)
-	return lowz_heat_transfer_function
+		print_info('Loading the high-injection/low-deposition heating bridge.')
+		lowz_heat_bridge_transfer_function = transfer(path)
+	return lowz_heat_transfer_function, lowz_heat_bridge_transfer_function
+
+
+def get_lowz_heat_transfer_function():
+	"""Return the low-low heating block (backwards-compatible accessor)."""
+
+	return get_lowz_heat_transfer_functions()[0]
+
+
+def get_lowz_spectral_distortions_transfer_functions():
+	"""Load low-injection residuals and the additive high-injection bridge."""
+
+	global lowz_spectral_distortions_functions
+	global lowz_spectral_distortions_bridge_functions
+	if lowz_spectral_distortions_functions is None:
+		path = _require_transfer_table(
+			'transfer_functions/original/low-z/'
+			'tf_nony_eps-7_mass_scan_summed_lowz.dat',
+			'low-z spectral-distortion table',
+		)
+		print_info('Loading the summed low-z spectral-distortion transfer function.')
+		lowz_spectral_distortions_functions = spectral_distortions(path)
+	if lowz_spectral_distortions_bridge_functions is None:
+		path = _require_transfer_table(
+			'transfer_functions/original/low-z/'
+			'tf_nony_eps-7_mass_scan_summed_highinj_lowdep.dat',
+			'high-injection low-z residual-distortion bridge',
+		)
+		print_info('Loading the high-injection low-z residual-distortion bridge.')
+		lowz_spectral_distortions_bridge_functions = spectral_distortions(path)
+	return (
+		lowz_spectral_distortions_functions,
+		lowz_spectral_distortions_bridge_functions,
+	)
 
 
 def get_lowz_spectral_distortions_functions():
-	"""Load and cache the transfer function extending distortions to low redshift."""
+	"""Return the low-injection residual table (backwards-compatible accessor)."""
 
-	global lowz_spectral_distortions_functions
-	if lowz_spectral_distortions_functions is None:
-		path = os.path.join(
-			os.environ['DARKAGES_BASE'],
-			'transfer_functions/original/low-z/tf_nony_eps-7_mass_scan_lowz.dat'
-		)
-		if not os.path.isfile(path):
-			raise DarkAgesError('The low-z spectral-distortion table is missing: {:s}'.format(path))
-		print_info('Loading the low-z spectral-distortion transfer function.')
-		lowz_spectral_distortions_functions = spectral_distortions(path)
-	return lowz_spectral_distortions_functions
+	return get_lowz_spectral_distortions_transfer_functions()[0]
 
 
 
@@ -293,13 +325,26 @@ def set_logEnergies(logE):
 	global logEnergies
 	logEnergies = logE
 
+
+def _deposition_transfer_paths(index):
+	table_path = os.path.join(
+		os.environ['DARKAGES_BASE'],
+		'transfer_functions/original/tf_final_summed_Ch{:d}.dat'.format(index + 1),
+	)
+	cache_path = os.path.join(
+		os.environ['DARKAGES_BASE'],
+		'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(index + 1),
+	)
+	return table_path, cache_path
+
 def _transfer_init_and_dump():
 	global transfer_functions
 	global transfer_functions_corr
 	for channel in list(channel_dict.keys()):
 		idx = channel_dict.get(channel)
-		transfer_functions[idx] = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/tf_final_summed_Ch{:d}.dat'.format(idx+1)))
-		transfer_dump(transfer_functions[idx], os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(idx+1)))
+		table_path, cache_path = _deposition_transfer_paths(idx)
+		transfer_functions[idx] = transfer(table_path)
+		transfer_dump(transfer_functions[idx], cache_path)
 	transfer_functions_corr = transfer(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/original/Transfer_Corr.dat'))
 	transfer_dump(transfer_functions_corr, os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/transfer_Corr.obj'))
 
@@ -308,8 +353,8 @@ def _transfer_load_from_dump():
 	global transfer_functions_corr
 	for channel in list(channel_dict.keys()):
 		idx = channel_dict.get(channel)
-		# print(idx)
-		transfer_functions[idx] = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(idx+1)) )
+		_, cache_path = _deposition_transfer_paths(idx)
+		transfer_functions[idx] = transfer_load(cache_path)
 	transfer_functions_corr = transfer_load( os.path.join(os.environ['DARKAGES_BASE'], 'transfer_functions/transfer_Corr.obj') )
 
 #################################
@@ -319,8 +364,25 @@ if (transfer_functions is None) or (transfer_functions_corr is None):
 
 	transfer_is_initialized = True
 	for i in range(5):
-		transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/tf_final_summed_Ch{:d}.obj'.format(i+1)))
-	transfer_is_initialized = transfer_is_initialized and os.path.isfile(os.path.join(os.environ['DARKAGES_BASE'],'transfer_functions/transfer_Corr.obj'))
+		table_path, cache_path = _deposition_transfer_paths(i)
+		transfer_is_initialized = (
+			transfer_is_initialized
+			and os.path.isfile(table_path)
+			and os.path.isfile(cache_path)
+			and os.path.getmtime(cache_path) >= os.path.getmtime(table_path)
+		)
+	corr_table_path = os.path.join(
+		os.environ['DARKAGES_BASE'], 'transfer_functions/original/Transfer_Corr.dat'
+	)
+	corr_cache_path = os.path.join(
+		os.environ['DARKAGES_BASE'], 'transfer_functions/transfer_Corr.obj'
+	)
+	transfer_is_initialized = (
+		transfer_is_initialized
+		and os.path.isfile(corr_table_path)
+		and os.path.isfile(corr_cache_path)
+		and os.path.getmtime(corr_cache_path) >= os.path.getmtime(corr_table_path)
+	)
 
 	if not transfer_is_initialized:
 		print_info('The transfer seem not to be initialized. This will be done now. this may take a few seconds.')

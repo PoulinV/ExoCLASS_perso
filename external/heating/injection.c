@@ -10,6 +10,75 @@
 #include "thermodynamics.h"
 
 /**
+ * Prepare either the legacy natural spline or the low-z hybrid interpolant.
+ *
+ * A low-z DarkAges table contains two independently calculated blocks.  A
+ * natural spline across their handoff can ring and generate negative heating.
+ * When the table advertises its handoff, set all low-z second derivatives to
+ * zero (linear interpolation) and spline only the high-z block.  The first
+ * high-z second derivative is also zero by the natural boundary condition, so
+ * the gap between the last low-z and first high-z nodes is linear as well.
+ */
+static int injection_prepare_redshift_interpolation(
+                                                    struct injection * pin,
+                                                    double * table,
+                                                    int line_size,
+                                                    int table_size,
+                                                    int index_y,
+                                                    int index_ddy){
+
+  int index_z;
+  int high_start = 0;
+  double redshift_tolerance;
+
+  if(pin->has_lowz_interpolation_handoff == _FALSE_){
+    class_call(array_spline(table,
+                            line_size,
+                            table_size,
+                            0,
+                            index_y,
+                            index_ddy,
+                            _SPLINE_NATURAL_,
+                            pin->error_message),
+               pin->error_message,
+               pin->error_message);
+    return _SUCCESS_;
+  }
+
+  while(high_start < table_size &&
+        table[high_start*line_size] < pin->lowz_interpolation_handoff_z){
+    high_start++;
+  }
+  class_test(high_start < 1 || high_start >= table_size-1,
+             pin->error_message,
+             "The low-z interpolation handoff z=%g does not split the DarkAges table into valid low/high blocks.",
+             pin->lowz_interpolation_handoff_z);
+
+  redshift_tolerance = 5.e-3*MAX(1.,fabs(pin->lowz_interpolation_handoff_z));
+  class_test(fabs(table[high_start*line_size]-pin->lowz_interpolation_handoff_z) > redshift_tolerance,
+             pin->error_message,
+             "The low-z interpolation handoff z=%g does not match the first high-z table node z=%g.",
+             pin->lowz_interpolation_handoff_z,
+             table[high_start*line_size]);
+
+  for(index_z=0; index_z<high_start; ++index_z){
+    table[index_z*line_size+index_ddy] = 0.;
+  }
+  class_call(array_spline(table+high_start*line_size,
+                          line_size,
+                          table_size-high_start,
+                          0,
+                          index_y,
+                          index_ddy,
+                          _SPLINE_NATURAL_,
+                          pin->error_message),
+             pin->error_message,
+             pin->error_message);
+
+  return _SUCCESS_;
+}
+
+/**
  * Initialize injection structure.
  *
  * @param ppr   Input: pointer to precision structure
@@ -37,6 +106,8 @@ int injection_init(struct precision * ppr,
   pin->last_index_x_chi = 0;
   pin->last_index_z_chi = 0;
   pin->last_index_z_feff = 0;
+  pin->has_lowz_interpolation_handoff = _FALSE_;
+  pin->lowz_interpolation_handoff_z = 0.;
   pin->injection_verbose = pth->thermodynamics_verbose;
   /** - Import quantities from other structures */
   /* Precision structure */
@@ -1503,6 +1574,8 @@ int injection_read_feff_from_file(struct precision* ppr,
   int index_z;
 
   pin->feff_z_size = 0;
+  pin->has_lowz_interpolation_handoff = _FALSE_;
+  pin->lowz_interpolation_handoff_z = 0.;
 
   /** - Read file header */
   /* The file is assumed to contain:
@@ -1529,6 +1602,12 @@ int injection_read_feff_from_file(struct precision* ppr,
     left=line;
     while (left[0]==' ') {
       left++;
+    }
+
+    if(sscanf(left,"# lowz_interpolation_handoff_z = %lg",
+              &(pin->lowz_interpolation_handoff_z)) == 1){
+      pin->has_lowz_interpolation_handoff = _TRUE_;
+      continue;
     }
 
     /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
@@ -1566,16 +1645,13 @@ int injection_read_feff_from_file(struct precision* ppr,
 
   fclose(fA);
 
-  /** - Spline file contents */
-  /* Spline in one dimension */
-  class_call(array_spline(pin->feff_table,
-                          3,
-                          pin->feff_z_size,
-                          0,
-                          1,
-                          2,
-                          _SPLINE_NATURAL_,
-                          pin->error_message),
+  /** - Prepare the legacy spline or low-z linear/high-z spline hybrid. */
+  class_call(injection_prepare_redshift_interpolation(pin,
+                                                       pin->feff_table,
+                                                       3,
+                                                       pin->feff_z_size,
+                                                       1,
+                                                       2),
              pin->error_message,
              pin->error_message);
 
@@ -1604,6 +1680,8 @@ int injection_read_chi_z_from_file(struct precision* ppr,
   char command_with_arguments[2*_ARGUMENT_LENGTH_MAX_];
 
   pin->chiz_size = 0;
+  pin->has_lowz_interpolation_handoff = _FALSE_;
+  pin->lowz_interpolation_handoff_z = 0.;
 
   /* The file is assumed to contain:
    *    - The number of lines of the file
@@ -1634,6 +1712,12 @@ int injection_read_chi_z_from_file(struct precision* ppr,
     left=line;
     while (left[0]==' ') {
       left++;
+    }
+
+    if(sscanf(left,"# lowz_interpolation_handoff_z = %lg",
+              &(pin->lowz_interpolation_handoff_z)) == 1){
+      pin->has_lowz_interpolation_handoff = _TRUE_;
+      continue;
     }
 
     /* Check that the line is neither blank nor a comment. In ASCII, left[0]>39 means that first non-blank charachter might
@@ -1693,16 +1777,16 @@ int injection_read_chi_z_from_file(struct precision* ppr,
   }else{
     fclose(fA);
   }
-  /* Spline in one dimension */
+  /* Prepare a natural spline for legacy tables. For low-z extensions, the
+     advertised low-z block is linear and only the high-z block is splined. */
   for(index_dep=0;index_dep<pin->dep_size;++index_dep){
-    class_call(array_spline(pin->chiz_table,
-                            2*pin->dep_size+1,
-                            pin->chiz_size,
-                            0,
-                            1+index_dep,
-                            1+index_dep+pin->dep_size,
-                            _SPLINE_NATURAL_,
-                            pin->error_message),
+    class_call(injection_prepare_redshift_interpolation(
+                                                      pin,
+                                                      pin->chiz_table,
+                                                      2*pin->dep_size+1,
+                                                      pin->chiz_size,
+                                                      1+index_dep,
+                                                      1+index_dep+pin->dep_size),
                pin->error_message,
                pin->error_message);
   }

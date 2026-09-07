@@ -3923,6 +3923,23 @@ int input_read_parameters_injection(struct file_content * pfc,
           "You did not precise DarkAges_mode, check that it is either 'built_in' or 'user_command'.");
       }
 
+      /* Optional low-redshift extension shared by the deposition and
+         spectral-distortion DarkAges calls. */
+      class_call(parser_read_string(pfc,"lowz_transfer_mode",&string2,&flag1,errmsg),
+                 errmsg,
+                 errmsg);
+      if (flag1 == _TRUE_){
+        class_test(strcmp(string2,"legacy") != 0 &&
+                   strcmp(string2,"extend") != 0 &&
+                   strcmp(string2,"extend-new") != 0 &&
+                   strcmp(string2,"low-only") != 0 &&
+                   strcmp(string2,"low-below-four") != 0,
+                   errmsg,
+                   "The parameter 'lowz_transfer_mode' must be one of {'legacy','extend','extend-new','low-only','low-below-four'}.");
+        strcat(pin->command_fz," --lowz-transfer-mode=");
+        strcat(pin->command_fz,string2);
+      }
+
 
     }
     else{

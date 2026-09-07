@@ -351,6 +351,10 @@ cdef extern from "class.h":
         ErrorMsg error_message
 
     cdef struct distortions:
+        int z_size
+        double * z
+        double * z_weights
+        double ** br_table
         double * sd_parameter_table
         double ** sd_table
         int index_type_g
@@ -364,6 +368,10 @@ cdef extern from "class.h":
         double x_to_nu
         int has_distortions
         int x_size
+        int include_only_exotic
+        int exact_y
+        double * dQrho_dz_tot
+        double * exact_integrand_y
         int loop_over_CLASS_for_DH
         ErrorMsg error_message
 

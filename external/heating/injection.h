@@ -157,6 +157,8 @@ struct injection{
   /* Deposition function tables */
   double* chiz_table;
   int chiz_size;
+  short has_lowz_interpolation_handoff; /**< low-z DarkAges rows use linear interpolation below this boundary */
+  double lowz_interpolation_handoff_z; /**< first high-z table node, in the CLASS physical-z convention */
   double* chix_table;
   int chix_size;
 

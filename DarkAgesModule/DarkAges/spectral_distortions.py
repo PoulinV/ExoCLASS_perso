@@ -18,6 +18,8 @@ from scipy.integrate import trapz
 import numpy as np
 import dill
 
+from .transfer import reshape_on_coordinate_grid
+
 import os
 import sys
 
@@ -41,14 +43,14 @@ class spectral_distortions(object):
 
         #print 'Initializing the transfer functions'
         data = np.genfromtxt(infile, unpack=True, usecols=(0,1,2,3,4), dtype=np.float64 )
-        self.z_injected = np.unique(data[0]).astype(np.float64)
-        self.frequency = np.unique(data[1]).astype(np.float64)
-        self.E_injected = np.unique(pow(10,data[2])).astype(np.float64)
-        l1 = len(self.z_injected)
-        l2 = len(self.frequency)
-        l3 = len(self.E_injected)
-        self.spectral_distortions_phot = data[4].reshape(l1,l2,l3).astype(np.float64)
-        self.spectral_distortions_elec = data[3].reshape(l1,l2,l3).astype(np.float64)
+        coordinates, self.spectral_distortions_elec = reshape_on_coordinate_grid(
+            data, (0, 1, 2), 3
+        )
+        self.z_injected, self.frequency, log10_energy = coordinates
+        self.E_injected = np.power(10.0, log10_energy)
+        _, self.spectral_distortions_phot = reshape_on_coordinate_grid(
+            data, (0, 1, 2), 4
+        )
 
     def __add__(self,other):
         returned_instance = _dcp(self)
@@ -113,7 +115,7 @@ def spectral_distortions_load(infile):
 	#else:
 	return loaded_spectral_distortions
 
-def spectral_distortion_today(frequency,z_injected, E_injected,transfer_functions_E,spectral_distortions_phot,spectral_distortions_elec,spec_elec, spec_phot,hist,normalization, sigmav=3e-26,t_dec=np.inf,n_cdm=0,**DarkOptions):
+def spectral_distortion_today(frequency,z_injected, E_injected,transfer_functions_E,spectral_distortions_phot,spectral_distortions_elec,spec_elec, spec_phot,hist,normalization, sigmav=3e-26,t_dec=np.inf,n_cdm=0,injection_mask=None,**DarkOptions):
     # u"""Returns the effective efficiency factor :math:`f_c (z)`
     # for the deposition channel :math:`c`.
     #
@@ -141,10 +143,23 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     # :obj:`array-like`
     # 	Array (:code:`shape = (k)`) of :math:`E0dNdE0dV0` at the frequency today given in :code:`frequency`
     # """
-    E = 10**(E_injected)
-    dlogz = np.diff(np.log(z_injected))
-    # print(dz,z_injected)
-    # dlogz = np.append(dz, dz[0])
+    E_injected = np.asarray(E_injected, dtype=np.float64)
+    transfer_functions_E = np.asarray(transfer_functions_E, dtype=np.float64)
+    z_injected = np.asarray(z_injected, dtype=np.float64)
+    E = 10**E_injected
+    if len(z_injected) > 1:
+        # np.gradient reproduces the old constant dln(1+z) weight on the
+        # logarithmic legacy grid and also handles the nonuniform low-z grid.
+        dlogz = np.gradient(np.log(z_injected))
+    else:
+        dlogz = np.ones_like(z_injected)
+    if injection_mask is None:
+        injection_mask = np.ones_like(z_injected, dtype=bool)
+    else:
+        injection_mask = np.asarray(injection_mask, dtype=bool)
+        if injection_mask.shape != z_injected.shape:
+            from .__init__ import DarkAgesError
+            raise DarkAgesError('The spectral-distortion injection mask does not match the redshift grid.')
 
     #PROBLEME WITH E: should feed the injected particle energy AND the energy of the transfer function table separately.
     how_to_integrate = DarkOptions.get('E_integration_scheme','energy')
@@ -154,15 +169,12 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
     if len(E) == 1: how_to_integrate = 'energy' # Handling of a dirac-spectrum is inside the integration part w.r.t energy
     # norm = ( conversion(z_dep,alpha=alpha) )*( normalization )
 
-    if (len(E_injected) == len(transfer_functions_E)):
-    	if np.any(abs(log10E - transfer_functions_log10E) <= 1e-9*log10E):
-    		need_to_interpolate = False
-    	else:
-    		from .common import evaluate_spectral_distortion_transfer
-    		need_to_interpolate = True
-    else:
-    	from .common import evaluate_spectral_distortion_transfer
-    	need_to_interpolate = True
+    need_to_interpolate = not (
+        len(E) == len(transfer_functions_E)
+        and np.allclose(E, transfer_functions_E, rtol=1e-9, atol=0.0)
+    )
+    if need_to_interpolate:
+        from .common import evaluate_spectral_distortion_transfer
     # need_to_interpolate = False
     energy_integral = np.zeros( shape=(len(frequency),len(z_injected)), dtype=np.float64)
     Enj = transfer_functions_E
@@ -176,12 +188,12 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
                 if not need_to_interpolate:
                     # int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
                     # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**2)/np.log10(np.e)
-                    int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-                    int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
+                    int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*E[:]/np.log10(np.e)
+                    int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*Eelec[:]/np.log10(np.e)
                 else:
-                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**2)/np.log10(np.e)
-                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],Eelec)*spec_elec[:,k]*(Eelec[:]**2)/np.log10(np.e)
-                energy_integral[i][k] = trapz( int_phot + int_elec, log10E )
+                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*E[:]/np.log10(np.e)
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],Eelec)*spec_elec[:,k]*Eelec[:]/np.log10(np.e)
+                energy_integral[i][k] = trapz( int_phot + int_elec, E_injected )
         elif how_to_integrate == 'energy':
             # print("here!!")
             for k in range(len(z_injected)):
@@ -192,8 +204,8 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
                     # int_phot = spectral_distortions_phot[k,i,:]*spec_phot[:,k]*(E[:]**1)
                     # int_elec = spectral_distortions_elec[k,i,:]*spec_elec[:,k]*(E[:]**1)
                 else:
-                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]/2
-                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],Eelec)*spec_elec[:,k]/2
+                    int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]
+                    int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],Eelec)*spec_elec[:,k]
                     # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*2
                     # int_phot = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_phot[k,i,:],E)*spec_phot[:,k]*(E[:]**1)
                     # int_elec = evaluate_spectral_distortion_transfer(Enj,spectral_distortions_elec[k,i,:],E)*spec_elec[:,k]*(E[:]**1)
@@ -203,25 +215,25 @@ def spectral_distortion_today(frequency,z_injected, E_injected,transfer_function
                     energy_integral[i][k] = int_phot + int_elec
                 # if(energy_integral[i][k]==0):
                     # print('nu %f, z %f, E %f, dNdE %f, jntegral %f'%(frequency[i],z_injected[k],E[:],spec_elec[:,k],energy_integral[i][k]))
-    result = np.zeros_like( frequency, dtype=np.float64)
-    result2 = np.zeros_like( frequency, dtype=np.float64)
+    # The spectral-distortion transfer table is normalized per injection
+    # event containing a pair, whereas the input spectra count individual
+    # particles.  Convert particles to pair events in every integration path
+    # (on/off the transfer grid and for both energy-integration schemes).
+    energy_integral *= 0.5
+
     rate_per_volume_per_time = np.zeros_like( z_injected, dtype=np.float64)
     if hist=='decay':
-        rate_per_volume_per_time = n_cdm * (z_injected[:]+1)**3 / t_dec
-    if hist=='annihilation':
+        rate_per_volume_per_time = n_cdm * z_injected**3 / t_dec
+    if hist in ['annihilation','annihilation_halos']:
         # print(DarkOptions.get('n_cdm'),z_injected[:],DarkOptions.get('sigmav'))
-        rate_per_volume_per_time = (n_cdm*(z_injected[:]+1)**3) **2 * sigmav
-    for i in range(len(result)):
-        from .common import H
-        low = 0
-        # print(frequency[i]*4.135667696e-15)
-        #low = i
-        # integrand = conversion(1+z_injected[:],alpha=-3) / (1 + z_injected[:]) *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-        integrand = dlogz[0]/ H(z_injected[:]) / (1 + z_injected[:])** 3 *  rate_per_volume_per_time[:] *energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-        # integrand = energy_integral[i,:] #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-        # print(integrand) #(1+z)**4 from splitting dln(1+z)=dz/(1+z)
-        # result[i] = trapz( integrand, z_injected)
-        result2[i] = integrand.sum()
+        # Majorana-DM annihilation event rate: <sigma v> n_chi^2 / 2.
+        rate_per_volume_per_time = 0.5 * (n_cdm*z_injected**3) **2 * sigmav
+    from .common import H
+    redshift_weight = (
+        dlogz / H(z_injected) / z_injected**3
+        * rate_per_volume_per_time * injection_mask
+    )
+    result2 = np.sum(energy_integral*redshift_weight[None,:], axis=1)
 # result[i] = integrand.sum()
 
 # result = np.empty_like( norm, dtype=np.float64 )

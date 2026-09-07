@@ -94,6 +94,13 @@ parser.add_option("--apply_smoothing", action='store_true', dest='apply_smoothin
                   help="apply a smoothing to the spectral distortions today from all channels")
 parser.add_option("--nbins_smoothing", type='int', dest='nbins_smoothing',
                   help="number of bins for the smoothing")
+parser.add_option("--lowz-transfer-mode", dest='lowz_transfer_mode',
+                  choices=['legacy','extend','extend-new','low-only','low-below-four'], default='legacy',
+                  help=("Select the low-redshift transfer functions: 'legacy' keeps the old tables; "
+                        "'extend' adds the new tables below old coverage and prefers old values in "
+                        "the overlap; 'extend-new' prefers the new values throughout the overlap; "
+                        "'low-only' isolates the complete low-z table; "
+                        "'low-below-four' keeps only injection nodes with 1+z<4."))
 
 (options, args) = parser.parse_args()
 if len(args) == 0:
@@ -206,6 +213,8 @@ if "apply_smoothing" not in DarkOptions:
 	DarkOptions.update({"apply_smoothing":options.apply_smoothing})
 if "nbins_smoothing" not in DarkOptions:
 	DarkOptions.update({"nbins_smoothing":options.nbins_smoothing})
+if "lowz_transfer_mode" not in DarkOptions:
+	DarkOptions.update({"lowz_transfer_mode":options.lowz_transfer_mode})
 
 if options.injection_history == 'evaporating_PBH':
 	sys.exit( recipes.evaporating_PBH(options.mass, transfer_functions, **DarkOptions) )

@@ -449,6 +449,35 @@ cdef class Class:
         # following functions are only to output the desired numbers
         return
 
+    def compute_distortions_only(self):
+        """Compute distortions after the thermal history, without CMB spectra.
+
+        This fast path is valid only with ``sd_only_exotic = yes`` because the
+        standard acoustic-dissipation heating calculation requires the
+        perturbation and primordial modules.
+        """
+        self.compute(["thermodynamics"])
+        if self.sd.include_only_exotic == _FALSE_:
+            raise CosmoSevereError(
+                "compute_distortions_only requires sd_only_exotic = yes; "
+                "use compute(['distortions']) when standard heating sources "
+                "are included."
+            )
+        if "distortions" in self.ncp:
+            return
+        if self.th.run_DH_with_SD == _TRUE_:
+            raise CosmoSevereError(
+                "compute_distortions_only is not available for the iterative "
+                "DarkHistory spectral-distortion interface."
+            )
+        if distortions_init(&(self.pr), &(self.ba), &(self.th),
+                            &(self.pt), &(self.pm), &(self.sd)) == _FAILURE_:
+            self.struct_cleanup()
+            raise CosmoComputationError(self.sd.error_message)
+        self.ncp.add("distortions")
+        self.computed = True
+        return
+
     def raw_cl(self, lmax=-1, nofail=False):
         """
         raw_cl(lmax=-1, nofail=False)
@@ -2816,6 +2845,30 @@ make        nonlinear_scale_cb(z, z_size)
         cdef np.ndarray[DTYPE_t, ndim=2] sd_output = np.zeros((self.sd.x_size,number_of_titles),'float64')
         distortions_output_sd_data(&self.sd, number_of_titles, <double*> sd_output.data)
         return sd_output
+
+    def spectral_distortion_y_history(self):
+        """Return the arrays entering CLASS's exact-y redshift integral.
+
+        Returns ``(z, exact_integrand, y_branching, z_weights)``. The exact
+        integrand is ``4 dy/dz`` before multiplication by the y branching
+        ratio. Consequently CLASS's integrated exact-y contribution is
+        ``sum(exact_integrand*y_branching*z_weights)/4`` (before an explicit
+        ``sd_add_y`` or the optional late-time SZ template).
+        """
+        if self.sd.z_size == 0 or self.sd.type_size == 0:
+          raise CosmoSevereError("No spectral distortions have been calculated. Check that the output contains 'Sd' and the compute level is at least 'distortions'.")
+        if self.sd.exact_y == 0:
+          raise CosmoSevereError("The exact-y history was not calculated. Set exact_y = yes.")
+        cdef np.ndarray[DTYPE_t, ndim=1] redshift = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] exact_integrand = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] y_branching = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] z_weights = np.zeros(self.sd.z_size,'float64')
+        for i in range(self.sd.z_size):
+          redshift[i] = self.sd.z[i]
+          exact_integrand[i] = self.sd.exact_integrand_y[i]
+          y_branching[i] = self.sd.br_table[self.sd.index_type_y][i]
+          z_weights[i] = self.sd.z_weights[i]
+        return redshift, exact_integrand, y_branching, z_weights
 
 
     def get_sources(self):

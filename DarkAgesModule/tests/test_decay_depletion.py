@@ -48,6 +48,12 @@ def make_model(redshift, lifetime):
 
 class DecayDepletionTest(unittest.TestCase):
 
+    def test_cosmic_age_includes_lambda_at_low_redshift(self):
+        seconds_per_gyr = 365.25 * 24.0 * 3600.0 * 1.0e9
+        self.assertAlmostEqual(
+            time_at_z(1.0) / seconds_per_gyr, 13.81, places=2
+        )
+
     def test_prompt_raw_efficiency_contains_one_survival_factor(self):
         redshift = np.asarray([100.0, 200.0, 400.0])
         lifetime = time_at_z(redshift[0]) / (-np.log(0.4))

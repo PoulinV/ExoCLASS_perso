@@ -51,6 +51,9 @@ from .common import finalize, feff_finalize, sample_spectrum
 from .__init__ import transfer_functions, DarkAgesError, get_redshift, get_logEnergies, print_info, print_warning, channel_dict
 from .model import annihilating_model, decaying_model, evaporating_model, annihilating_halos_model, accreting_model
 from .spectral_distortions import spectral_distortions, spectral_distortion_today, spectral_distortions_finalize
+from .lowz import (add_spectral_distortions, combine_lowz_heat_results,
+                   LOW_INJECTION_CUTOFF, low_high_masks, normalize_lowz_transfer_mode,
+                   splice_deposition_channels, validate_lowz_transfer_blocks)
 
 from .interpolator import logInterpolator, NDlogInterpolator
 
@@ -266,42 +269,155 @@ def loading_from_specfiles(fnames, transfer_functions, spectral_distortions,mass
 		entries in :code:`fnames`
 	"""
 
-	if logEnergies is None: logEnergies = get_logEnergies()
-	if redshift is None: redshift = get_redshift()
+	if logEnergies is None:
+		logEnergies = get_logEnergies()
+	if redshift is None:
+		redshift = transfer_functions[0].z_injected
 
-	model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
-	# redshift = [redshift[i] for i in 8*np.arange(0,52)]##52 is chosen to sum over oscillations of period 8 bins in the new file
+	mode = normalize_lowz_transfer_mode(DarkOptions.get('lowz_transfer_mode', 'legacy'))
+	high_model = spec_elec_and_phot(
+		fnames, mass, logEnergies=logEnergies, redshift=redshift,
+		t_dec=t_dec, zh=zh, fh=fh, hist=hist, branchings=branchings,
+		**DarkOptions
+	)
+	high_redshift = transfer_functions[0].z_deposited
 
+	low_redshift = None
+	low_heat = None
+	if mode != 'legacy':
+		from .__init__ import get_lowz_heat_transfer_functions
+		low_transfer, bridge_transfer = get_lowz_heat_transfer_functions()
+		high_heat_transfer = transfer_functions[channel_dict['Heat']]
+		try:
+			validate_lowz_transfer_blocks(
+				low_transfer, bridge_transfer, high_heat_transfer
+			)
+		except ValueError as error:
+			raise DarkAgesError(str(error))
+
+		low_injection_mask, bridge_injection_mask = low_high_masks(
+			low_transfer.z_injected, bridge_transfer.z_injected, mode
+		)
+		low_model = spec_elec_and_phot(
+			fnames, mass, logEnergies=logEnergies,
+			redshift=low_transfer.z_injected, t_dec=t_dec, zh=zh, fh=fh,
+			hist=hist, branchings=branchings, **DarkOptions
+		)
+		# The bridge has the high-z injection grid but the low-z deposition
+		# grid.  Build the reference normalization on the latter rather than
+		# accidentally broadcasting the high-z normalization array.
+		deposition_model = spec_elec_and_phot(
+			fnames, mass, logEnergies=logEnergies,
+			redshift=bridge_transfer.z_deposited, t_dec=t_dec, zh=zh, fh=fh,
+			hist=hist, branchings=branchings, **DarkOptions
+		)
+		low_result = low_model.calc_f(
+			low_transfer, injection_mask=low_injection_mask, **DarkOptions
+		)
+		bridge_result = high_model.calc_f(
+			bridge_transfer,
+			injection_mask=bridge_injection_mask,
+			deposition_normalization=deposition_model.normalization,
+			**DarkOptions
+		)
+		low_redshift, low_heat = combine_lowz_heat_results(
+			low_transfer, low_result[-1], bridge_transfer, bridge_result[-1],
+			low_injection_mask, bridge_injection_mask,
+		)
+		if mode in ('low-only', 'low-below-four'):
+			print_info(
+				'Using diagnostic {:s} transfer mode; high-z injections '
+				'and the bridge are excluded.'.format(mode)
+			)
+		else:
+			print_info(
+				'Using low-z transfer mode {:s}, including the high-injection/'
+				'low-deposition bridge; non-heating low-z channels are zero.'.format(mode)
+			)
 
 	print_feff = DarkOptions.get("print_f_eff", False)
-	# print(len(redshift))
 	if not print_feff:
-		f_function = np.zeros( shape=(len(channel_dict),len(redshift)), dtype=np.float64 )
+		high_channels = np.zeros(
+			shape=(len(channel_dict),len(high_redshift)), dtype=np.float64
+		)
 		for channel in channel_dict:
 			idx = channel_dict[channel]
-			f_function[idx,:] = model.calc_f(transfer_functions[idx], **DarkOptions)[-1]
+			channel_result = high_model.calc_f(transfer_functions[idx], **DarkOptions)
+			if not np.array_equal(channel_result[0], high_redshift):
+				raise DarkAgesError('The legacy deposition-channel redshift grids do not match.')
+			high_channels[idx,:] = channel_result[-1]
 
+		if mode == 'legacy':
+			output_redshift = high_redshift
+			output_channels = high_channels
+		else:
+			output_redshift, output_channels = splice_deposition_channels(
+				low_redshift, low_heat, high_redshift, high_channels, mode
+			)
 
-		finalize(redshift,
-				 f_function[channel_dict['Heat']],
-				 f_function[channel_dict['Ly-A']],
-				 f_function[channel_dict['H-Ion']],
-				 f_function[channel_dict['He-Ion']],
-				 f_function[channel_dict['LowE']],
-				 **DarkOptions)
+		final_options = dict(DarkOptions)
+		if mode != 'legacy':
+			if 'first_index' not in final_options:
+				final_options['first_index'] = 0
+			high_output = output_redshift[output_redshift > low_redshift[-1]]
+			if high_output.size == 0:
+				raise DarkAgesError(
+					'The low-z extension has no high-z row at its interpolation handoff.'
+				)
+			# This boundary is written into the table header for CLASS. It keeps
+			# the low-z block linear while preserving the legacy high-z spline.
+			final_options['lowz_interpolation_handoff_z'] = float(
+				high_output[0] - 1.0
+			)
+		finalize(output_redshift,
+				 output_channels[channel_dict['Heat']],
+				 output_channels[channel_dict['Ly-A']],
+				 output_channels[channel_dict['H-Ion']],
+				 output_channels[channel_dict['He-Ion']],
+				 output_channels[channel_dict['LowE']],
+				 **final_options)
 	else:
-		f_eff = np.zeros( shape=(len(redshift),), dtype=np.float64 )
 		from .__init__ import transfer_functions_corr as tf_corr
 		transfer_comb = transfer_functions.sum() - tf_corr
-		f_eff[:] = model.calc_f(transfer_comb, **DarkOptions)[-1]
-
-		#if hist == 'decay':
-		#	from .common import time_at_z
-		#	f_eff *= np.exp(time_at_z(redshift)/t_dec)
-
-		feff_finalize(redshift,
-					  f_eff,
-					  **DarkOptions)
+		high_f_eff = high_model.calc_f(transfer_comb, **DarkOptions)[-1]
+		output_redshift = high_redshift
+		f_eff = high_f_eff
+		if mode in ('low-only', 'low-below-four'):
+			if mode == 'low-only':
+				low_mask = np.ones(low_redshift.shape, dtype=bool)
+				zero_boundary = low_redshift[-1]
+				boundary = np.asarray([], dtype=np.float64)
+			else:
+				low_mask = low_redshift < LOW_INJECTION_CUTOFF
+				zero_boundary = LOW_INJECTION_CUTOFF
+				boundary = np.asarray([zero_boundary])
+			high_tail = high_redshift > zero_boundary
+			output_redshift = np.concatenate(
+				(low_redshift[low_mask], boundary, high_redshift[high_tail])
+			)
+			f_eff = np.concatenate(
+				(
+					low_heat[low_mask],
+					np.zeros(boundary.size + np.count_nonzero(high_tail), dtype=np.float64),
+				)
+			)
+		elif mode != 'legacy':
+			low_mask, high_mask = low_high_masks(low_redshift, high_redshift, mode)
+			output_redshift = np.concatenate((low_redshift[low_mask], high_redshift[high_mask]))
+			f_eff = np.concatenate((low_heat[low_mask], high_f_eff[high_mask]))
+		final_options = dict(DarkOptions)
+		if mode != 'legacy':
+			if 'first_index' not in final_options:
+				final_options['first_index'] = 0
+			high_output = output_redshift[output_redshift > low_redshift[-1]]
+			if high_output.size == 0:
+				raise DarkAgesError(
+					'The low-z extension has no high-z row at its interpolation handoff.'
+				)
+			final_options['lowz_interpolation_handoff_z'] = float(
+				high_output[0] - 1.0
+			)
+		feff_finalize(output_redshift, f_eff, **final_options)
 
 def compute_distortions(fnames, spectral_distortions,mass,  t_dec=np.inf,zh=1.,fh=0.,sigmav=3e-26,n_cdm=0, hist='annihilation', branchings=[1.], **DarkOptions):
 	u"""Wrapper to calculate :math:`SD(nu)` and print a two column table
@@ -354,17 +470,73 @@ def compute_distortions(fnames, spectral_distortions,mass,  t_dec=np.inf,zh=1.,f
 
 	print_spectral_distortion = DarkOptions.get("print_spectral_distortion", False)
 	if print_spectral_distortion:
-            logEnergies=np.log10(spectral_distortions.E_injected)
-            redshift = spectral_distortions.z_injected
-            model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
-            distortions=  np.zeros( shape=(len(spectral_distortions.frequency),), dtype=np.float64 )
-            distortions[:]= spectral_distortion_today(spectral_distortions.frequency,spectral_distortions.z_injected,model.logEnergies,spectral_distortions.E_injected,spectral_distortions.spectral_distortions_phot,
-            spectral_distortions.spectral_distortions_elec,model.spec_electrons,model.spec_photons, sigmav=sigmav,t_dec=t_dec,n_cdm=n_cdm,hist=hist,normalization=model.normalization,  **DarkOptions)
-            spectral_distortions_finalize(spectral_distortions.frequency,distortions,**DarkOptions)
+		mode = normalize_lowz_transfer_mode(DarkOptions.get('lowz_transfer_mode', 'legacy'))
 
-	logEnergies = get_logEnergies()
-	redshift = get_redshift()
-	model = spec_elec_and_phot(fnames, mass, logEnergies=logEnergies, redshift=redshift, t_dec=t_dec,zh=zh,fh=fh, hist=hist, branchings=branchings, **DarkOptions)
+		def calculate_for_table(table, injection_mask):
+			log_energies = np.log10(table.E_injected)
+			model = spec_elec_and_phot(
+				fnames, mass, logEnergies=log_energies,
+				redshift=table.z_injected, t_dec=t_dec, zh=zh, fh=fh,
+				hist=hist, branchings=branchings, **DarkOptions
+			)
+			return spectral_distortion_today(
+				table.frequency, table.z_injected, model.logEnergies,
+				table.E_injected, table.spectral_distortions_phot,
+				table.spectral_distortions_elec, model.spec_electrons,
+				model.spec_photons, sigmav=sigmav, t_dec=t_dec,
+				n_cdm=n_cdm, hist=hist, normalization=model.normalization,
+				injection_mask=injection_mask, **DarkOptions
+			)
+
+		if mode == 'legacy':
+			distortions = calculate_for_table(
+				spectral_distortions,
+				np.ones_like(spectral_distortions.z_injected, dtype=bool)
+			)
+		else:
+			from .__init__ import get_lowz_spectral_distortions_transfer_functions
+			low_table, bridge_table = get_lowz_spectral_distortions_transfer_functions()
+			if (
+				bridge_table.z_injected.shape != spectral_distortions.z_injected.shape
+				or not np.allclose(
+					bridge_table.z_injected,
+					spectral_distortions.z_injected,
+					rtol=2.0e-5,
+					atol=0.0,
+				)
+			):
+				raise DarkAgesError(
+					'The high-injection low-z residual bridge does not match the '
+					'high-z injection grid.'
+				)
+			low_mask, high_mask = low_high_masks(
+				low_table.z_injected, spectral_distortions.z_injected, mode
+			)
+			high_distortions = calculate_for_table(spectral_distortions, high_mask)
+			bridge_distortions = calculate_for_table(bridge_table, high_mask)
+			low_distortions = calculate_for_table(low_table, low_mask)
+			distortions = add_spectral_distortions(
+				spectral_distortions.frequency, high_distortions,
+				bridge_table.frequency, bridge_distortions
+			)
+			distortions = add_spectral_distortions(
+				spectral_distortions.frequency, distortions,
+				low_table.frequency, low_distortions
+			)
+			if mode in ('low-only', 'low-below-four'):
+				print_info(
+					'Using diagnostic {:s} spectral-distortion mode; '
+					'high-z injections and the bridge are excluded.'.format(mode)
+				)
+			else:
+				print_info(
+					'Using low-z spectral-distortion transfer mode {:s}, including '
+					'the additive high-injection bridge.'.format(mode)
+				)
+
+		spectral_distortions_finalize(
+			spectral_distortions.frequency, distortions, **DarkOptions
+		)
 
 def spec_elec_and_phot(fnames,mass,  logEnergies=None, redshift=None, t_dec=np.inf,zh=1.,fh=0., hist='annihilation', branchings=[1.], **DarkOptions):
 
