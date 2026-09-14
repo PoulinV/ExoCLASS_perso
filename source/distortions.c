@@ -146,6 +146,10 @@ int distortions_free(struct distortions * psd) {
     if(psd->loop_over_CLASS_for_DH == 1){
        free(psd->DH_dist_table);
     }
+    if (psd->include_DH_SMresidual_distortions == _TRUE_) {
+      free(psd->DH_SMresiduals_table);
+      psd->DH_SMresiduals_table = NULL;
+    }
 
     /** Delete noise file */
     if (psd->has_detector_file == _TRUE_) {
@@ -980,6 +984,7 @@ int distortions_compute_heating_rate(struct precision* ppr,
 
 
   free(pvecback);
+  free(pvecthermo);
 
   if (psd->include_only_exotic == _FALSE_) {
     /** Update heating table with second order contributions */
