@@ -4514,7 +4514,7 @@ int transfer_workspace_free(
   free(ptw->cscKgen);
   free(ptw->cotKgen);
 
-  //free(ptw);
+  free(ptw);
   return _SUCCESS_;
 }
 
