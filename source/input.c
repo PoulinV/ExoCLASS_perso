@@ -4012,6 +4012,20 @@ int input_read_parameters_injection(struct file_content * pfc,
 
   /** 7) DarkHistory inputs */
   if(pth->recombination == darkhistory){
+    /* Above high_rs DarkHistory does not solve the TLA (standard Tm and x_e), so the DarkHistory table is only used below it */
+    class_read_double("high_rs",pth->DH_high_rs);
+    /* DarkHistory injects the whole DM density (no fraction) at the undepleted decay rate rho_DM/tau,
+       while CLASS uses f*rho_cdm*Gamma*exp(-Gamma*t): they agree only for f=1 and lifetimes much longer
+       than the age (4.35e17 s), where the depletion over the DarkHistory evolution is below 1% */
+    class_test(pin->DM_annihilation_cross_section > 0 && pin->DM_annihilation_fraction != 1.,
+               errmsg,
+               "recombination=DarkHistory supports only DM_annihilation_fraction = 1 (DarkHistory does not take a fraction).");
+    class_test(pin->DM_decay_fraction > 0 && pin->DM_decay_fraction != 1.,
+               errmsg,
+               "recombination=DarkHistory supports only DM_decay_fraction = 1 (DarkHistory does not take a fraction).");
+    class_test(pin->DM_decay_fraction > 0 && pin->DM_decay_Gamma > 1./4.35e19,
+               errmsg,
+               "recombination=DarkHistory cannot model short-lived particles yet: DarkHistory neglects the depletion exp(-t/tau). Use a lifetime 1/Gamma > 4.35e19 s (100 x the age), or the DarkAges interface.");
     class_call(parser_read_string(pfc,"DarkHistory_mode",&string1,&flag1,errmsg),
                errmsg,
                errmsg);
@@ -4081,6 +4095,9 @@ int input_read_parameters_injection(struct file_content * pfc,
         class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
                    errmsg,
                    errmsg);
+        /* The same key feeds DarkAges (deposition above high_rs), which names the delta spectra differently */
+        if (strcmp(string2,"dirac_electron") == 0) sprintf(string2,"elec_delta");
+        if (strcmp(string2,"dirac_photon") == 0) sprintf(string2,"phot_delta");
         strcat(pth->command_DH,string2);
         class_test(strcmp(string2,"") == 0,errmsg,
           "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
@@ -4104,6 +4121,9 @@ int input_read_parameters_injection(struct file_content * pfc,
         class_call(parser_read_string(pfc,"injected_particle_spectra",&string2,&flag1,errmsg),
                    errmsg,
                    errmsg);
+        /* The same key feeds DarkAges (deposition above high_rs), which names the delta spectra differently */
+        if (strcmp(string2,"dirac_electron") == 0) sprintf(string2,"elec_delta");
+        if (strcmp(string2,"dirac_photon") == 0) sprintf(string2,"phot_delta");
         strcat(pth->command_DH,string2);
         class_test(strcmp(string2,"") == 0,errmsg,
           "The field injected_particle_spectra is empty!! you need to give either:\ni) the name of a file in which to get the spectrum\nii) a list of the following keywords ['electron','muon','tau','quark','charm','bottom','top','wboson','zboson','gluon','photon','higgs','dirac_electron','dirac_photon'] with a SPACE (no comas) between each word.\n");
@@ -6605,6 +6625,7 @@ int input_default_params(struct background *pba,
 
   pth->run_DH_with_SD = _FALSE_;
   pth->DH_init_distort_component = dh_distortion_total;
+  pth->DH_high_rs = _HUGE_;
   pth->DH_include_y_distortion = _TRUE_;
   /** 8) Parametrization of reionization */
   pth->reio_parametrization=reio_camb;

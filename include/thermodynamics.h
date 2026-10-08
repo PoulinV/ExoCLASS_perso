@@ -195,6 +195,7 @@ struct thermodynamics
   int index_DH_Tmat;
   int index_DH_dTmat;
   int DH_mode;
+  double DH_high_rs; // 1+z above which DarkHistory imposes the standard Tm and x_e; CLASS keeps its own solution there
   short run_DH_with_SD;
   enum DH_distortion_component DH_init_distort_component;
   short DH_include_y_distortion;

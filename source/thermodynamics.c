@@ -3001,6 +3001,7 @@ int thermodynamics_sources(
   // For interpolating DarkHistory table
   int last_index; // dummy index
   double * pvecDH;
+  double z_DH_max; // highest redshift taken from the DarkHistory table
 
   /* Redshift */
   z = -mz;
@@ -3047,7 +3048,9 @@ int thermodynamics_sources(
   switch (pth->recombination){
 
     case darkhistory:
-      if(z>pth->DH_table[(pth->DH_z_size-1)*(2*pth->DH_th_size+1)]){
+      /* Use the DarkHistory table only where DarkHistory solved the TLA, i.e. below both its last row and high_rs */
+      z_DH_max = MIN(pth->DH_table[(pth->DH_z_size-1)*(2*pth->DH_th_size+1)], pth->DH_high_rs-1.);
+      if(z>z_DH_max){
         //pth->DH_z_size*(2*pth->DH_th_size+1)
         Tmat = y[ptv->index_ti_D_Tmat] + Trad;
         /* Note that dy[index_ti_Q] represents dQ/d(-z), thus we need -dy here */
