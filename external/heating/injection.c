@@ -97,6 +97,7 @@ int injection_init(struct precision * ppr,
   int index_inj, index_dep;
   int background_arguments_size;
   char background_arguments[256];
+  char * previous_background_arguments;
 
   /** - Initialize flags, indices and parameters */
   pin->has_DM_ann = _FALSE_;
@@ -127,9 +128,12 @@ int injection_init(struct precision * ppr,
      Omega0_m and Omega0_r are only available after background_init(), so
      append them here rather than while parsing the input file. */
   if(pin->DM_decay_table_uses_undepleted_rate == _TRUE_){
-    class_test(strstr(pin->command_fz," --use-background ") != NULL,
-               pin->error_message,
-               "The built-in DarkAges command already contains CLASS background arguments; reparse the input before reinitializing injection.");
+    /* With DarkHistory, main() initializes injection twice on the same parsed input (HyRec pass, then
+       DarkHistory pass): drop the background arguments appended by the previous pass before re-adding them */
+    previous_background_arguments = strstr(pin->command_fz," --use-background ");
+    if (previous_background_arguments != NULL) {
+      *previous_background_arguments = '\0';
+    }
     background_arguments_size = snprintf(background_arguments,
                                          sizeof(background_arguments),
                                          " --use-background %.17g %.17g %.17g",
