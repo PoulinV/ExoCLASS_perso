@@ -63,5 +63,60 @@ class ExactYHistoryIntegrationTest(unittest.TestCase):
             SCAN.integrate_exact_y_difference(model, baseline)
 
 
+class MuHistoryIntegrationTest(unittest.TestCase):
+
+    @staticmethod
+    def history(redshift, heating, mu_branching, weights):
+        ones = np.ones_like(redshift)
+        return redshift, heating, ones, ones, mu_branching, weights
+
+    def test_total_uses_class_trapezoidal_weights_and_mu_normalization(self):
+        redshift = np.asarray([1.0, 2.0, 4.0])
+        weights = np.asarray([0.5, 1.5, 1.0])
+        mu_branching = np.asarray([0.0, 0.5, 1.0])
+        baseline = self.history(
+            redshift, np.asarray([1.0, 1.0, 1.0]), mu_branching, weights
+        )
+        model = self.history(
+            redshift, np.asarray([2.0, 4.0, 8.0]), mu_branching, weights
+        )
+        expected = 1.401 * np.dot(
+            (model[1] - baseline[1]) * mu_branching, weights
+        )
+        self.assertEqual(
+            SCAN.integrate_mu_difference(model, baseline), expected
+        )
+
+    def test_redshift_window_inserts_both_boundary_nodes(self):
+        redshift = np.asarray([1.0, 2.0, 4.0, 8.0])
+        weights = np.asarray([0.5, 1.5, 3.0, 2.0])
+        mu_branching = np.ones_like(redshift)
+        baseline = self.history(
+            redshift, np.zeros_like(redshift), mu_branching, weights
+        )
+        model = self.history(
+            redshift, redshift, mu_branching, weights
+        )
+        # 1.401 * integral_3^6 z dz = 1.401 * 13.5.
+        self.assertAlmostEqual(
+            SCAN.integrate_mu_difference(
+                model, baseline, scale=2.0, z_min=3.0, z_max=6.0
+            ),
+            1.401 * 27.0,
+        )
+
+    def test_mismatched_mu_branching_is_rejected(self):
+        redshift = np.asarray([1.0, 2.0])
+        weights = np.asarray([0.5, 0.5])
+        model = self.history(
+            redshift, np.ones(2), np.ones(2), weights
+        )
+        baseline = self.history(
+            redshift, np.zeros(2), np.asarray([1.0, 0.9]), weights
+        )
+        with self.assertRaises(RuntimeError):
+            SCAN.integrate_mu_difference(model, baseline)
+
+
 if __name__ == "__main__":
     unittest.main()

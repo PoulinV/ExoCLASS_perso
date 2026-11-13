@@ -2870,6 +2870,38 @@ make        nonlinear_scale_cb(z, z_size)
           z_weights[i] = self.sd.z_weights[i]
         return redshift, exact_integrand, y_branching, z_weights
 
+    def spectral_distortion_heating_history(self):
+        """Return the heating integrand and standard branching functions.
+
+        Returns ``(z, dQrho_dz, g_branching, y_branching, mu_branching,
+        z_weights)``.  Before explicit manual amplitudes, CLASS obtains the
+        standard energy-release components from these arrays as
+
+        ``g = dot(dQrho_dz*g_branching, z_weights)/4``,
+        ``y = dot(dQrho_dz*y_branching, z_weights)/4`` (unless ``exact_y``
+        replaces this integral), and
+        ``mu = 1.401*dot(dQrho_dz*mu_branching, z_weights)``.
+
+        This accessor is useful for pointwise matched-baseline subtraction and
+        redshift cuts without subtracting two completed distortion amplitudes.
+        """
+        if self.sd.z_size == 0 or self.sd.type_size == 0:
+          raise CosmoSevereError("No spectral distortions have been calculated. Check that the output contains 'Sd' and the compute level is at least 'distortions'.")
+        cdef np.ndarray[DTYPE_t, ndim=1] redshift = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] heating = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] g_branching = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] y_branching = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] mu_branching = np.zeros(self.sd.z_size,'float64')
+        cdef np.ndarray[DTYPE_t, ndim=1] z_weights = np.zeros(self.sd.z_size,'float64')
+        for i in range(self.sd.z_size):
+          redshift[i] = self.sd.z[i]
+          heating[i] = self.sd.dQrho_dz_tot[i]
+          g_branching[i] = self.sd.br_table[self.sd.index_type_g][i]
+          y_branching[i] = self.sd.br_table[self.sd.index_type_y][i]
+          mu_branching[i] = self.sd.br_table[self.sd.index_type_mu][i]
+          z_weights[i] = self.sd.z_weights[i]
+        return redshift, heating, g_branching, y_branching, mu_branching, z_weights
+
 
     def get_sources(self):
         """
