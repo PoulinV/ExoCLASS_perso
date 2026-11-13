@@ -2756,7 +2756,11 @@ int thermodynamics_derivs(
   /** - Derivative of the matter temperature (relevant for both Recfast and HyRec cases) */
 
   /* Restore the real x for the temperature equations. */
-  if (pth->has_exotic_injection == _FALSE_) {
+  /* reio_camb (tanh): x_reio = max(x_tanh, x_noreio) must also enter the T_b equation, otherwise with exotic injection
+     the gas is heated as if never reionized (heat capacity and Compton rate with x_noreio ~ 0.1) while the exact-y
+     integrand uses x_reio ~ 1.1, and the exotic y comes out ~2x too large (2026-11-10). reio_stars is unchanged:
+     the stellar photoionization already enters x_noreio. */
+  if (pth->has_exotic_injection == _FALSE_ || pth->reio_parametrization == reio_camb) {
     x = ptdw->x_reio;
     //VP: if there is exotic energy injection we want to compute the true effect on the temperature and not that of the artificial reio model.
     //also it tends to lead to a bug when injection is too strong otherwise.
