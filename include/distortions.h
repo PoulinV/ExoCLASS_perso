@@ -127,6 +127,7 @@ struct distortions
   /* Variables to read, allocate and interpolate external file branching_ratios_exact.dat */
   double * br_exact_z;                       /**< Redshift array for reading from file br_exact_z[index_z] */
   int br_exact_Nz;                           /**< Number of redshift values for reading from file */
+  double br_exact_dlnz;                      /**< ln-z bin width of the grid on which the PCA files were generated (normalization of the E_k amplitudes) */
 
   double * f_g_exact;                        /**< temperature shift/g distortion branching ratio f_g_exact[index_z] */
   double * ddf_g_exact;                      /**< second derivative of the above ddf_g_exact[index_z] */

@@ -799,6 +799,8 @@ int distortions_compute_branching_ratios(struct precision * ppr,
         f_g = 0;
         f_y = 1;
         f_mu = 0;
+        /* below the PCA table: no residual (f_E was previously left uninitialized here) */
+        for (index_k=0; index_k<psd->sd_PCA_size; ++index_k) f_E[index_k] = 0.;
       }
 
 
@@ -1057,8 +1059,10 @@ int distortions_compute_spectral_shapes(struct precision * ppr,
 
     }
     if (index_type>=psd->index_type_PCA) {
-      /* The S_k are not properly normalized, we have to renormalize here */
-      psd->sd_parameter_table[index_type] /= (log(1.+psd->z[1])-log(1.+psd->z[0]));
+      /* The S_k are not properly normalized, we have to renormalize here, with the bin width of the grid on which the
+         PCA files were generated (previously the bin width of the current run, which made the residual wrong by the
+         ratio of the two, e.g. x43 for sd_z_min = 0.01 with files generated on 1e3-5e6) */
+      psd->sd_parameter_table[index_type] /= psd->br_exact_dlnz;
     }
   }
 
@@ -1710,6 +1714,14 @@ int distortions_read_br_data(struct precision * ppr,
   }
 
   fclose(infile);
+
+  /* The E_k of generate_PCA_files.py are eigenvectors on its own logarithmic z grid, and the S_k carry one factor of
+     its bin width delta_ln_z = ln z[1] - ln z[0]; the amplitudes must therefore be divided by that width, not by the
+     bin width of the current run (which differs as soon as sd_z_min, sd_z_max or sd_z_size differ from the generation). */
+  class_test(psd->br_exact_Nz < 2,
+             psd->error_message,
+             "Need at least two redshifts in file '%s'",br_file);
+  psd->br_exact_dlnz = log(psd->br_exact_z[1])-log(psd->br_exact_z[0]);
 
   return _SUCCESS_;
 }
