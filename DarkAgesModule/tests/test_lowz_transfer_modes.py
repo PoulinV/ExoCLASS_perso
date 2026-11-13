@@ -154,8 +154,8 @@ class LowRedshiftTransferModesTest(unittest.TestCase):
     def test_active_highz_heat_file_is_the_new_table(self):
         expected = transfer(str(
             DARKAGES_BASE
-            / "transfer_functions/original/new_tfs/"
-            / "tf_test_heat_eps-7_mass_scan_summed_negdist.dat"
+            / "transfer_functions/original/new_tfs/low-redshift-fix-He/"
+            / "tf_test_heat_eps-7_mass_scan_summed_negdist_low-redshift-fix-He.dat"
         ))
         active = DarkAges.transfer_functions[DarkAges.channel_dict["Heat"]]
         np.testing.assert_array_equal(active.transfer_elec, expected.transfer_elec)
@@ -187,7 +187,8 @@ class LowRedshiftTransferModesTest(unittest.TestCase):
         )
         np.testing.assert_allclose(
             high_fraction[:, 0],
-            [0.43212, 0.52054, 0.0072826, 0.00011017],
+            # 2026-11-10 _low-redshift-fix-He tables (was 0.43212, 0.52054, 0.0072826, 0.00011017)
+            [0.43212, 0.34372, 0.0061195, 0.000092439],
             rtol=1.0e-12,
         )
         np.testing.assert_allclose(
@@ -195,7 +196,8 @@ class LowRedshiftTransferModesTest(unittest.TestCase):
             [0.0003127468, 0.000006634696, 0.0004569432, 0.00000838347],
             rtol=1.0e-12,
         )
-        self.assertAlmostEqual(float(np.max(high_fraction[1])), 1.12363)
+        # was 1.12363 (> 1) before the DarkHistory ionized-electron double-count fix
+        self.assertAlmostEqual(float(np.max(high_fraction[1])), 0.8130235, places=7)
 
     def test_active_lowz_heat_has_no_global_factor_of_two(self):
         low, _ = DarkAges.get_lowz_heat_transfer_functions()

@@ -30,6 +30,15 @@ the high-injection bridge, and the high-redshift table.
 - High-redshift deposition channels:
   `DarkAgesModule/transfer_functions/original/tf_final_summed_Ch1.dat`
   through `Ch5.dat`, replaced from `original/new_tfs/`.
+  - 2026-11-10: replaced by the `_low-redshift-fix-He` delivery
+    (`original/new_tfs/low-redshift-fix-He/`; H ion -> Ch1, He ion -> Ch2,
+    Lyman alpha -> Ch3, heat -> Ch4, continuum -> Ch5). DarkHistory fix 58a9d80
+    (free-streaming 13-24 eV photons were also counted as photoionizing) and
+    `compute_fs_method = He`. Only the deposition rows 1+z = 4.39-7.32 change;
+    electron heating there drops by 12-40%. The non-y iter0 table
+    (`DH_interface/..._iter0_negdist_newbaseline.dat`) was replaced too
+    (relative change <= 7e-4). Low-z tables unchanged. Previous files:
+    `original/backup_pre_fixHe_20261110/`.
 - Low-low heat:
   `tf_heat_eps-7_mass_scan_summed_lowz.dat` (`12 x 20 x 12`).
 - High-to-low heat bridge:
