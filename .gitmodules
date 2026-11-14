@@ -1,0 +1,4 @@
+[submodule "DH_interface/DarkHistory"]
+	path = DH_interface/DarkHistory
+	url = https://github.com/hongwanliu/DarkHistory.git
+	branch = CLASS_interface
