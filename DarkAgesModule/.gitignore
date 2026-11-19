@@ -14,3 +14,5 @@ sphinx-documentation/_static
 examples/.ipynb_checkpoints/
 
 setup.py
+# scratch plotting script and its output (local only)
+output_DarkAges_dist.tmp.*

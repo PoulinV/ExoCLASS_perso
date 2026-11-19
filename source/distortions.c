@@ -2408,7 +2408,6 @@ int injection_read_DH_distortions_from_file( struct distortions * psd,struct the
   index_DH = 1; // start at 1 because skipping redshift at index 0
   class_define_index(psd->index_DH_dNdE,_TRUE_,index_DH,1);
   psd->DH_dist_size = index_DH-1; // subtract one because not including redshift
-  // psd->DH_dist_file_name = "/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/DH_interface/tmp_distortions_CLASSformat.txt";
   /** Open file */
   // class_open(DH_input, pth->DH_dist_file_name, "r", psd->error_message);
   // printf("here!!\n");
@@ -2531,7 +2530,6 @@ int injection_read_SM_distortions_from_file( struct distortions * psd,struct the
         index_DH = 1; // start at 1 because skipping redshift at index 0
         class_define_index(psd->index_DH_SMresiduals_dNdE,_TRUE_,index_DH,1);
         psd->DH_SMresiduals_size = index_DH-1; // subtract one because not including redshift
-        // psd->DH_dist_file_name = "/Users/vpoulin/Dropbox/Labo/ProgrammeCMB/ExoCLASS_perso/DH_interface/tmp_distortions_CLASSformat.txt";
         /** Open file */
         // class_open(DH_input, pth->DH_dist_file_name, "r", psd->error_message);
         // printf("here!!\n");
