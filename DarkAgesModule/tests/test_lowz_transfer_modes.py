@@ -34,6 +34,14 @@ from DarkAges.common import finalize  # noqa: E402
 import DarkAges.recipes as recipes  # noqa: E402
 import DarkAges  # noqa: E402
 
+TABLES = DARKAGES_BASE / "transfer_functions/original"
+
+
+def needs_producer_tables(*relative_paths):
+    """Skip tests that compare with the raw producer tables, which are not distributed with the code."""
+    missing = [p for p in relative_paths if not (TABLES / p).is_file()]
+    return unittest.skipIf(bool(missing), "producer tables not in this checkout: " + ", ".join(missing))
+
 
 class LowRedshiftTransferModesTest(unittest.TestCase):
 
@@ -151,6 +159,7 @@ class LowRedshiftTransferModesTest(unittest.TestCase):
         self.assertEqual(redshift[0], 1.1366)
         self.assertEqual(redshift[-1], 4.0878)
 
+    @needs_producer_tables("new_tfs/low-redshift-fix-He/tf_test_heat_eps-7_mass_scan_summed_negdist_low-redshift-fix-He.dat")
     def test_active_highz_heat_file_is_the_new_table(self):
         expected = transfer(str(
             DARKAGES_BASE
@@ -207,6 +216,10 @@ class LowRedshiftTransferModesTest(unittest.TestCase):
         self.assertAlmostEqual(float(np.max(budget_ratio)), 1.0383252570358215)
         self.assertLess(float(np.max(budget_ratio)), 1.05)
 
+    @needs_producer_tables(
+        "new_tfs/tf_test_heat_eps-7_mass_scan_negdist.dat",
+        "low-z/tf_heat_eps-7_mass_scan_lowz.dat",
+    )
     def test_draft_figure7_unsummed_integrated_heat_values(self):
         """Lock the unsummed producer curves used in draft Figure 7."""
 
