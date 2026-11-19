@@ -17,4 +17,6 @@ doc/manual/latex
 DH_interface/tf_mock_data.dat
 DH_interface/*.obj
 DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.dat
-DH_interface/tf_mock_data_exclude_y_fixed_init_eps-8.dat
+# shipped gzipped; DarkAges unpacks it on first use
+DH_interface/tf_real_data_exclude_y_fixed_init_eps-7_mass_scan_iter0_negdist_newbaseline.dat
+DH_interface/.unpack_*.part

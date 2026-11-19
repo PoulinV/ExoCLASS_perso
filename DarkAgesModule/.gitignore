@@ -1,5 +1,11 @@
 *.pyc
 *.dat
+# transfer tables shipped with the code (the rest of *.dat are generated)
+!transfer_functions/original/tf_final_summed_Ch[1-5].dat
+!transfer_functions/original/low-z/tf_heat_eps-7_mass_scan_summed_lowz.dat
+!transfer_functions/original/low-z/tf_heat_eps-7_mass_scan_summed_highinj_lowdep.dat
+!transfer_functions/original/low-z/tf_nony_eps-7_mass_scan_summed_lowz.dat
+!transfer_functions/original/low-z/tf_nony_eps-7_mass_scan_summed_highinj_lowdep.dat
 *.obj
 
 sphinx-documentation/_build

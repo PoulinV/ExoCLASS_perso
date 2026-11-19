@@ -410,6 +410,31 @@ def _spectral_distortions_paths():
 	return table_path, cache_path
 
 
+def _unpack_gzipped_table(table_path):
+	"""Unpack ``table_path + '.gz'`` next to it if only the compressed copy exists.
+
+	The default table is too large for git and is distributed gzipped. The copy is
+	written to a temporary file and renamed, so concurrent processes are safe.
+	"""
+
+	packed = table_path + '.gz'
+	if os.path.isfile(table_path) or not os.path.isfile(packed):
+		return
+	import gzip
+	import shutil
+	import tempfile
+	print_info('Unpacking {:s} (done once).'.format(packed))
+	fd, tmp = tempfile.mkstemp(prefix='.unpack_', suffix='.part', dir=os.path.dirname(table_path))
+	try:
+		with gzip.open(packed, 'rb') as src, os.fdopen(fd, 'wb') as dst:
+			shutil.copyfileobj(src, dst, 1 << 20)
+		os.replace(tmp, table_path)
+	except BaseException:
+		if os.path.exists(tmp):
+			os.remove(tmp)
+		raise
+
+
 def _spectral_distortions_init_and_dump():
 	global spectral_distortions_functions
 	table_path, cache_path = _spectral_distortions_paths()
@@ -428,8 +453,9 @@ if (spectral_distortions_functions is None):
 	spectral_distortions_functions = np.empty(shape=1, dtype=spectral_distortions)
 
 	table_path, cache_path = _spectral_distortions_paths()
+	_unpack_gzipped_table(table_path)
 	if not os.path.isfile(table_path):
-		raise DarkAgesError('The spectral-distortion transfer table is missing: {:s}'.format(table_path))
+		raise DarkAgesError('The spectral-distortion transfer table is missing: {:s} (nor {:s}.gz)'.format(table_path, table_path))
 	spectral_distortions_is_initialized = os.path.isfile(cache_path)
 	if spectral_distortions_is_initialized:
 		spectral_distortions_is_initialized = os.path.getmtime(cache_path) >= os.path.getmtime(table_path)
