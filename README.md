@@ -1,5 +1,122 @@
-CLASS: Cosmic Linear Anisotropy Solving System  {#mainpage}
-==============================================
+ExoCLASS+DarkHistory (ExoCLASS-DH)  {#mainpage}
+========
+
+ExoCLASS-DH is a version of the Boltzmann code [CLASS](https://github.com/lesgourg/class_public)
+extended to handle exotic energy injection (e.g. dark matter annihilation and
+decay). It computes energy deposition with the DarkAges module, and it can be
+coupled to [DarkHistory](https://github.com/hongwanliu/DarkHistory), which is
+included as a git submodule.
+
+Installing ExoCLASS-DH
+----------------------
+
+### 1. Clone the repository with its submodule
+
+<!-- TODO: update this URL to the final public location of the repository. -->
+
+```bash
+git clone --recurse-submodules https://github.com/PoulinV/ExoCLASS_perso
+cd ExoCLASS_perso
+```
+
+If you already cloned without `--recurse-submodules`, run:
+
+```bash
+git submodule update --init --recursive
+```
+
+This checks out DarkHistory (branch `CLASS_interface`, at the commit pinned in
+this repository) into `DH_interface/DarkHistory/`. Leave it at that path:
+CLASS calls `DH_interface/DarkHistory/DHoneline.py` from there.
+
+### 2. Set up a Python environment (Python >= 3.10)
+
+ExoCLASS runs DarkHistory and DarkAges with a plain `python` command, so
+`python` (not only `python3`) must be on your `PATH`, and must have the
+packages below, in the shell where you run `./class`. Create and activate a
+conda environment with all the dependencies:
+
+```bash
+conda create -n exoclass -c conda-forge python=3.12 numpy scipy cython astropy h5py matplotlib tqdm pyyaml dill future
+conda activate exoclass
+```
+
+DarkHistory itself does not need to be installed: CLASS runs it directly from
+the submodule, so Python finds the `darkhistory` package there.
+
+*Optional:* to `import darkhistory` in your own scripts or notebooks, also
+install it into the environment. Use `--no-deps` so that pip does not touch
+the packages installed by conda:
+
+```bash
+pip install --no-deps -e DH_interface/DarkHistory
+```
+
+### 3. Download the DarkHistory data files
+
+DarkHistory needs data tables that are not stored in git. Download them 
+at https://doi.org/10.5281/zenodo.13259508.
+
+Point DarkHistory to this directory, for example in your
+`~/.zshrc` or `~/.bashrc`:
+
+```bash
+export DH_DATA_DIR=/path/to/DarkHistory_data
+```
+
+These files are only needed for the full DarkHistory interface (see below).
+
+### 4. Compile ExoCLASS and its Python wrapper
+
+From the repository root:
+
+```bash
+make clean
+make -j          # builds ./class, libclass.a and the classy Python wrapper
+```
+
+The absolute path of the repository is compiled into the code. If you move
+the repository, run `make clean; make` again.
+
+### 5. Check the installation
+
+```bash
+./class explanatory.ini                  # plain CLASS
+./class example_ExoCLASS-DH-fast.ini     # fast interface
+./class example_ExoCLASS-DH-full.ini     # full interface (runs DarkHistory; slow)
+python -c "import classy; print('ok')"
+```
+
+Fast vs. full DarkHistory interface
+-----------------------------------
+
+- **Fast interface** (`example_ExoCLASS-DH-fast.ini`): uses precomputed
+  transfer tables, committed under `DarkAgesModule/transfer_functions/`,
+  through the DarkAges module. It does not run DarkHistory and does not need
+  the DarkHistory data files.
+- **Full interface** (`example_ExoCLASS-DH-full.ini`): calls DarkHistory
+  during the run. It needs the submodule, the Python packages and the data
+  files from steps 1–3, and is much slower.
+
+The example `.ini` files explain the available options.
+
+Citing ExoCLASS
+---------------
+
+<!-- TODO: update these references when papers are out. -->
+If you use ExoCLASS, please cite
+[arXiv:1801.01871](https://arxiv.org/abs/1801.01871) and
+[arXiv:1910.04619](https://arxiv.org/abs/1910.04619), as well as the CLASS
+paper below. If you use the DarkHistory interface, please also cite
+DarkHistory: [arXiv:1904.09296](https://arxiv.org/abs/1904.09296),
+[arXiv:2303.07366](https://arxiv.org/abs/2303.07366) and
+[arXiv:2303.07370](https://arxiv.org/abs/2303.07370).
+
+
+Original CLASS documentation
+============================
+
+CLASS: Cosmic Linear Anisotropy Solving System
 
 Authors: Julien Lesgourgues, Thomas Tram, Nils Schoeneberg
 
@@ -7,19 +124,13 @@ with several major inputs from other people, especially Benjamin
 Audren, Simon Prunet, Jesus Torrado, Miguel Zumalacarregui, Francesco
 Montanari, Deanna Hooper, Samuel Brieden, Daniel Meinert, Matteo Lucca, etc.
 
-For download and information, see http://class-code.net
+For information on CLASS, see http://class-code.net
 
 
 Compiling CLASS and getting started
 -----------------------------------
 
-(the information below can also be found on the webpage, just below
-the download button)
-
-Download the code from the webpage and unpack the archive (tar -zxvf
-class_vx.y.z.tar.gz), or clone it from
-https://github.com/lesgourg/class_public. Go to the class directory
-(cd class/ or class_public/ or class_vx.y.z/) and compile (make clean;
+To compile only the C code, go to the repository root and run (make clean;
 make class). You can usually speed up compilation with the option -j:
 make -j class. If the first compilation attempt fails, you may need to
 open the Makefile and adapt the name of the compiler (default: gcc),
