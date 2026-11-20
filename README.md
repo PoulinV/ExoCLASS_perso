@@ -54,13 +54,10 @@ pip install --no-deps -e DH_interface/DarkHistory
 
 ### 3. Download the DarkHistory data files
 
-DarkHistory needs data tables that are not stored in git. Download both sets:
+DarkHistory needs data tables that are not stored in git. Download them 
+at https://doi.org/10.5281/zenodo.13259508.
 
-- core data files: https://doi.org/10.5281/zenodo.13259509
-- additional files for the low-energy-electron / spectral-distortion version:
-  https://doi.org/10.5281/zenodo.7651517
-
-Put them in one directory and point DarkHistory at it, for example in your
+Point DarkHistory to this directory, for example in your
 `~/.zshrc` or `~/.bashrc`:
 
 ```bash
